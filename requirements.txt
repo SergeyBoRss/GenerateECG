@@ -1,0 +1,6 @@
+numpy==2.5.5
+physiokit==0.11.0
+neurokit2==0.3.0
+matplotlib==3.11.2
+
+ml-validation @ git+https://gitlab.com/moskalenkoviktor/ml_validation@8c1d1907098fdade773397701e032ec801a847a1
