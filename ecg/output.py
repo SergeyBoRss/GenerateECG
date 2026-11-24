@@ -50,6 +50,8 @@ def print_stitched_summary(config: StitchedEcgConfig, result: StitchedEcgResult)
     print(f"Длительность: {len(result.signal) / config.sample_rate:.3f} с; задано циклов: {config.beats}")
     print(f"Циклов в окне, включая неполные: {len(result.beats)}")
     print(f"Частота дискретизации: {config.sample_rate} Гц, seed: {config.seed}")
+    print(f"Разброс амплитуд: ±{config.amplitude_variation_pct:g}%; "
+          f"остальных параметров: ±{config.variation_pct:g}%")
     print(f"Смещение начала: {result.start_offset_samples / config.sample_rate * 1000:.1f} мс")
     _print_rr_summary(config, result)
     if result.beats[0].start < 0:
@@ -75,7 +77,8 @@ def print_random_summary(
     print(f"PQ={parameters.pq_ms} мс; QTc={parameters.qtc_ms} мс (Fridericia); "
           f"QT={parameters.qt_ms} мс; QRS={parameters.qrs_ms} мс")
     print(f"HR={parameters.hr_bpm} уд/мин; seed={parameters.seed}; форма={parameters.shape}; "
-          f"разброс=±{config.variation_pct:g}%")
+          f"разброс амплитуд=±{config.amplitude_variation_pct:g}%; "
+          f"остальных параметров=±{config.variation_pct:g}%")
     print(f"Длительность: {len(result.signal) / config.sample_rate:g} с; "
           f"отсчётов: {len(result.signal)}; частота: {config.sample_rate} Гц")
     _print_rr_summary(config, result)
@@ -153,7 +156,8 @@ def plot_random_result(
         save_path=save_path, show=show,
         title=(f"{parameters.shape} | PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms} | "
                f"QRS={parameters.qrs_ms} ms | HR={parameters.hr_bpm} | "
-               f"variation=±{config.variation_pct:g}% | seed={parameters.seed}"),
+               f"variation=±{config.variation_pct:g}% | "
+               f"amplitude variation=±{config.amplitude_variation_pct:g}% | seed={parameters.seed}"),
     )
 
 

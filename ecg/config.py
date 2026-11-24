@@ -71,7 +71,8 @@ class StitchedEcgConfig:
     seed: int = 42
     random_start: bool = True  # False — начинать с начала первого P.
     noise_amplitude: float = 0.03
-    variation_pct: float = 5.0  # Общий разброс ±5%; 0 отключает разброс.
+    variation_pct: float = 5.0  # Разброс длительностей и параметров формы; 0 отключает.
+    amplitude_variation_pct: float = 5.0  # Отдельный разброс амплитуд P, Q, R, S, T.
 
     # Амплитуды базовой линии
     baseline_wander_amplitude: float = 0.0  # В долях std чистого сигнала; 0 отключает
@@ -98,7 +99,12 @@ class StitchedEcgConfig:
 
     def parameter_bounds(self, name: str) -> tuple[int, int] | tuple[float, float]:
         value = getattr(self, name)
-        delta = abs(value) * self.variation_pct / 100
+        variation_pct = (
+            self.amplitude_variation_pct
+            if name in ("p_voltage", "q_depth", "r_height", "s_depth", "t_height")
+            else self.variation_pct
+        )
+        delta = abs(value) * variation_pct / 100
         low, high = value - delta, value + delta
         if name.endswith("_ms"):
             return ceil(low), floor(high)
@@ -107,6 +113,8 @@ class StitchedEcgConfig:
     def validate(self) -> None:
         if not np.isfinite(self.variation_pct) or self.variation_pct < 0:
             raise ValueError("variation_pct должен быть конечным и неотрицательным")
+        if not np.isfinite(self.amplitude_variation_pct) or not 0 <= self.amplitude_variation_pct <= 100:
+            raise ValueError("amplitude_variation_pct должен быть от 0 до 100, чтобы не менять полярность зубцов")
         for name in (
             "pq_interval_ms", "qrs_duration_ms", "qt_interval_ms",
             "p_duration_ms", "st_duration_ms", "p_lean", "s_to_qrs_duration_ratio",

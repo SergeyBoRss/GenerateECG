@@ -45,7 +45,9 @@ def parse_args(argv: list[str] | None = None) -> CliOptions:
     parser.add_argument("--baseline-sine-frequency", type=float, default=defaults.baseline_sine_frequency,
                         help="Частота синусоидального дрейфа, Гц")
     parser.add_argument("--variation-pct", type=float, default=defaults.variation_pct,
-                        help="Разброс параметров в процентах; 0 отключает разброс")
+                        help="Разброс длительностей и параметров формы в процентах; 0 отключает")
+    parser.add_argument("--amplitude-variation-pct", type=float, default=defaults.amplitude_variation_pct,
+                        help="Разброс амплитуд P, Q, R, S, T в процентах (0–100); 0 отключает")
 
     durations = parser.add_argument_group("Интервалы и длительности, мс")
     durations.add_argument("--pq-interval-ms", type=int, default=defaults.pq_interval_ms,
