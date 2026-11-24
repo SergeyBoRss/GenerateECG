@@ -42,6 +42,11 @@ def sample_beat_parameters(
     qt = integer("qt_interval_ms")
     t = integer("t_duration_ms")
     st = qt - qrs - t
+    p_voltage = floating("p_voltage")
+    if config.no_p:
+        p_voltage = 0.0
+    elif config.negative_p:
+        p_voltage *= -1
 
     # Все параметры одного отведения заданы явно, без случайного пресета.
     params = EcgPresetParameters(
@@ -53,7 +58,7 @@ def sample_beat_parameters(
         qt=qt,
         qtc=qt / np.cbrt(60 / heart_rate),
         flippers=[1],
-        p_voltages=[floating("p_voltage")],
+        p_voltages=[p_voltage],
         p_biphasics=[False],
         p_leans=[floating("p_lean")],
         q_depths=[floating("q_depth")],
@@ -68,7 +73,7 @@ def sample_beat_parameters(
         s_to_qrs_duration_ratio=[floating("s_to_qrs_duration_ratio")],
         st_deltas=[0.0],
         j_points=[0.0],
-        t_heights=[floating("t_height")],
+        t_heights=[floating("t_height") * (-1 if config.negative_t else 1)],
         t_leans=[config.t_lean],
     )
     return heart_rate, params
@@ -83,6 +88,14 @@ def sample_record_parameters(
     def draw(bounds: tuple[int, int]) -> int:
         return int(rng.integers(bounds[0], bounds[1] + 1))
 
+    def chance(percent: float) -> bool:
+        return percent > 0 and bool(rng.random() < percent / 100)
+
+    # Одно решение на всю запись; отсутствие P важнее её полярности.
+    no_p = chance(preset.no_p)
+    negative_p = chance(preset.negative_p) and not no_p
+    negative_t = chance(preset.negative_t)
+
     return SampledParameters(
         pq_ms=draw(preset.pq_ms),
         qtc_ms=draw(preset.qtc_ms),
@@ -92,4 +105,7 @@ def sample_record_parameters(
         shape=preset.shapes[int(rng.integers(len(preset.shapes)))],
         p_ms=draw(preset.p_ms),
         t_ms=draw(preset.t_ms),
+        no_p=no_p,
+        negative_p=negative_p,
+        negative_t=negative_t,
     )

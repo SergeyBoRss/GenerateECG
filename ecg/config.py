@@ -72,8 +72,11 @@ class StitchedEcgConfig(CommonEcgConfig):
     beats: int = 4  # Длина окна в циклах; крайние циклы могут быть неполными.
     random_start: bool = True  # False — начинать с начала первого P.
     variation_pct: float = 5.0  # Разброс длительностей и параметров формы; 0 отключает.
-    amplitude_variation_pct: float = 5.0  # Отдельный разброс амплитуд P, Q, R, S, T.
+    amplitude_variation_pct: float = 20.0  # Отдельный разброс амплитуд P, Q, R, S, T.
     p_lean: float = 1.0
+    no_p: bool = False
+    negative_p: bool = False
+    negative_t: bool = False
 
     def parameter_bounds(self, name: str) -> tuple[int, int] | tuple[float, float]:
         value = getattr(self, name)
@@ -120,11 +123,15 @@ class SamplingPreset:
     pq_ms: tuple[int, int] = (135, 160)
     qtc_ms: tuple[int, int] = (380, 430)
     qrs_ms: tuple[int, int] = (80, 100)
-    hr_bpm: tuple[int, int] = (50, 110)
+    hr_bpm: tuple[int, int] = (35, 110)
     seed: tuple[int, int] = (0, 2**32 - 1)
     shapes: tuple[str, ...] = tuple(MORPHOLOGY_PRESETS)
     p_ms: tuple[int, int] = (100, 120)
     t_ms: tuple[int, int] = (150, 180)
+    # Вероятности на запись, в процентах.
+    no_p: float = 10.0
+    negative_p: float = 10.0
+    negative_t: float = 10.0
 
     def validate(self, variation_pct: float = StitchedEcgConfig().variation_pct) -> None:
         # Проверяем крайние сочетания с учётом разброса внутри записи:

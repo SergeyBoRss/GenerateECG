@@ -89,6 +89,7 @@ def generate_cycle(
     # Фактические R–R считаются по меткам в готовой записи, где есть соседние R.
     if abs(len(signal) - expected_cycle_samples) >= 2 or np.count_nonzero(fiducials == int(EcgFiducial.r_peak)) != 1:
         raise RuntimeError("Не удалось выделить один полный цикл с одним R-пиком")
+
     return signal, segments, fiducials
 
 
@@ -104,6 +105,10 @@ def generate_stitched_ecg(config: StitchedEcgConfig) -> StitchedEcgResult:
     for _ in range(config.beats + int(config.random_start)):
         heart_rate, params = sample_beat_parameters(config, rng)
         signal, segments, fiducials = generate_cycle(heart_rate, params, config.sample_rate)
+        if config.no_p:
+            # Метки P нужны только для выделения цикла внутри generate_cycle.
+            segments[segments == int(EcgSegment.p_wave)] = int(EcgSegment.tp_segment)
+            fiducials[fiducials == int(EcgFiducial.p_wave)] = 0
         signals.append(signal)
         segment_arrays.append(segments)
         fiducial_arrays.append(fiducials)
@@ -196,6 +201,9 @@ def generate_record(
         pq_interval_ms=parameters.pq_ms,
         qt_interval_ms=parameters.qt_ms,
         qrs_duration_ms=parameters.qrs_ms,
+        no_p=parameters.no_p,
+        negative_p=parameters.negative_p,
+        negative_t=parameters.negative_t,
         **asdict(MORPHOLOGY_PRESETS[parameters.shape]),
     )
     result = generate_stitched_ecg(config)

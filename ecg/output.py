@@ -80,6 +80,12 @@ def print_random_summary(
     print(f"HR={parameters.hr_bpm} уд/мин; seed={parameters.seed}; форма={parameters.shape}; "
           f"разброс амплитуд=±{config.amplitude_variation_pct:g}%; "
           f"остальных параметров=±{config.variation_pct:g}%")
+    if parameters.no_p:
+        print("P отсутствует")
+    elif parameters.negative_p:
+        print("P инвертирована")
+    if parameters.negative_t:
+        print("T инвертирована")
     print(f"Длительность: {len(result.signal) / config.sample_rate:g} с; "
           f"отсчётов: {len(result.signal)}; частота: {config.sample_rate} Гц")
     _print_rr_summary(config, result)
@@ -152,10 +158,14 @@ def plot_random_result(
     save_path: Path | None = None,
     show: bool = True,
 ) -> None:
+    p_label = "absent" if parameters.no_p else f"{parameters.p_ms} ms"
+    if parameters.negative_p and not parameters.no_p:
+        p_label += " (inverted)"
+    t_label = f"{parameters.t_ms} ms" + (" (inverted)" if parameters.negative_t else "")
     plot_result(
         result.signal, config.sample_rate, get_boundaries(result),
         save_path=save_path, show=show,
-        title=(f"{parameters.shape} | P={parameters.p_ms} | T={parameters.t_ms} | "
+        title=(f"{parameters.shape} | P={p_label} | T={t_label} | "
                f"PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms} | "
                f"QRS={parameters.qrs_ms} ms | HR={parameters.hr_bpm} | "
                f"variation=±{config.variation_pct:g}% | "

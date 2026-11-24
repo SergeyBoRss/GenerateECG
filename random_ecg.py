@@ -32,6 +32,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Разброс длительностей и параметров формы каждого цикла, ±%%; 0 отключает")
     parser.add_argument("--amplitude-variation-pct", type=float, default=defaults.amplitude_variation_pct,
                         help="Разброс амплитуд P, Q, R, S, T каждого цикла, ±%% (0–100); 0 отключает")
+    parser.add_argument("--no-p", type=float, default=0.0, metavar="PERCENT",
+                        help="Вероятность отсутствия P на всей записи, %% (0–100)")
+    parser.add_argument("--negative-p", type=float, default=0.0, metavar="PERCENT",
+                        help="Вероятность инверсии P на всей записи, если P присутствует, %% (0–100)")
+    parser.add_argument("--negative-t", type=float, default=0.0, metavar="PERCENT",
+                        help="Вероятность инверсии T на всей записи, %% (0–100)")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/random_ecg"),
                         help="Папка набора: meta.csv и отдельный каталог на каждую запись")
     parser.add_argument("--count", type=int, default=1, help="Количество записей")
@@ -42,7 +48,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         for name in ("p_ms", "t_ms", "pq_ms", "qtc_ms", "qrs_ms", "hr_bpm")
         if getattr(args, name) is not None
     }
-    args.sampling_ranges = SamplingPreset(**overrides)
+    args.sampling_ranges = SamplingPreset(
+        **overrides, no_p=args.no_p,
+        negative_p=args.negative_p, negative_t=args.negative_t,
+    )
     try:
         args.sampling_ranges.validate(variation_pct=args.variation_pct)
         if args.count < 1:
@@ -67,7 +76,8 @@ def main(argv: list[str] | None = None) -> None:
             )
             config, result = generate_record(
                 parameters, duration_s=args.duration, sample_rate=args.sample_rate,
-                noise_amplitude=0.03, random_start=True,
+                noise_amplitude=int(rng.integers(20, 36)) / 1000,  # 0.010–0.035, шаг 0.001
+                random_start=True,
                 variation_pct=args.variation_pct,
                 amplitude_variation_pct=args.amplitude_variation_pct,
                 baseline_wander_amplitude=float(rng.uniform(0.0, 1.0)),

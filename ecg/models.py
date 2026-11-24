@@ -47,6 +47,9 @@ class SampledParameters:
     shape: str
     t_ms: int
     p_ms: int = 100
+    no_p: bool = False
+    negative_p: bool = False
+    negative_t: bool = False
 
     @property
     def qt_ms(self) -> int:
