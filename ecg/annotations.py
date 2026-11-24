@@ -11,6 +11,26 @@ WAVE_STYLES = {
 }
 
 
+def extract_annotations(segments: np.ndarray) -> list[dict[str, int | str]]:
+    if segments.size == 0:
+        return []
+
+    edges = np.concatenate((
+        [0], np.flatnonzero(segments[1:] != segments[:-1]) + 1, [len(segments)],
+    ))
+    classes = {int(code): name for name, (code, _) in WAVE_STYLES.items()}
+    annotations = []
+    for onset, offset in zip(edges[:-1], edges[1:]):
+        wave_class = classes.get(int(segments[onset]))
+        if wave_class is not None:
+            annotations.append({
+                "onset": int(onset),
+                "offset": int(offset),
+                "class": wave_class,
+            })
+    return annotations
+
+
 def extract_boundaries(segments: np.ndarray) -> dict[str, np.ndarray]:
     boundaries = {}
     for name, (segment_code, _) in WAVE_STYLES.items():

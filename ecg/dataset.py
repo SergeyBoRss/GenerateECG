@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .annotations import extract_annotations
 from .config import SamplingPreset, StitchedEcgConfig
 from .models import SampledParameters, StitchedEcgResult
 from .output import plot_random_result
@@ -66,6 +67,7 @@ class RandomDatasetWriter:
                 "record_index": record_index,
                 "selected": asdict(parameters),
             },
+            "annotations": extract_annotations(result.segments),
         }
         np.save(record_dir / "signal.npy", result.signal, allow_pickle=False)
         (record_dir / "metadata.json").write_text(

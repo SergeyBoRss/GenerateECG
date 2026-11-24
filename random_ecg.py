@@ -14,6 +14,7 @@ from ecg.parameters import sample_record_parameters
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    defaults = StitchedEcgConfig()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -32,8 +33,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Seed выбора параметров; при пропуске выбирается случайно и печатается")
     parser.add_argument("--duration", type=float, default=10.0, help="Длительность записи, с")
     parser.add_argument("--sample-rate", type=int, default=1000, help="Частота дискретизации, Гц (100–1000)")
-    parser.add_argument("--noise-amplitude", type=float, default=0.03, help="Амплитуда шума; 0 отключает")
-    parser.add_argument("--variation-pct", type=float, default=StitchedEcgConfig().variation_pct,
+    parser.add_argument("--noise-amplitude", type=float, default=defaults.noise_amplitude,
+                        help="Амплитуда обычного шума; 0 отключает")
+    parser.add_argument("--baseline-wander-amplitude", type=float, default=defaults.baseline_wander_amplitude,
+                        help="Масштаб случайного дрейфа в долях std чистого сигнала; 0 отключает")
+    parser.add_argument("--baseline-wander-frequency", type=float, default=defaults.baseline_wander_frequency,
+                        help="Частота изменений случайного дрейфа, Гц")
+    parser.add_argument("--baseline-sine-amplitude", type=float, default=defaults.baseline_sine_amplitude,
+                        help="Амплитуда синусоидального дрейфа в долях std чистого сигнала; 0 отключает")
+    parser.add_argument("--baseline-sine-frequency", type=float, default=defaults.baseline_sine_frequency,
+                        help="Частота синусоидального дрейфа, Гц")
+    parser.add_argument("--variation-pct", type=float, default=defaults.variation_pct,
                         help="Разброс параметров каждого цикла относительно базовых, ±%; 0 отключает")
     parser.add_argument("--random-start", action=argparse.BooleanOptionalAction, default=True,
                         help="Начинать со случайной позиции внутри цикла")
@@ -79,6 +89,10 @@ def main(argv: list[str] | None = None) -> None:
                 parameters, duration_s=args.duration, sample_rate=args.sample_rate,
                 noise_amplitude=args.noise_amplitude, random_start=args.random_start,
                 variation_pct=args.variation_pct,
+                baseline_wander_amplitude=args.baseline_wander_amplitude,
+                baseline_wander_frequency=args.baseline_wander_frequency,
+                baseline_sine_amplitude=args.baseline_sine_amplitude,
+                baseline_sine_frequency=args.baseline_sine_frequency,
             )
             record_dir = writer.save(
                 config, result, parameters, args.sampling_ranges, sampler_seed,

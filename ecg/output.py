@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from physiokit.ecg.defines import EcgFiducial, EcgSegment
 
-from .annotations import get_boundaries, make_ecg_lines
+from .annotations import extract_annotations, get_boundaries, make_ecg_lines
 from .config import EcgConfig, StitchedEcgConfig
 from .models import EcgResult, SampledParameters, StitchedEcgResult
 
@@ -55,7 +55,7 @@ def print_stitched_summary(config: StitchedEcgConfig, result: StitchedEcgResult)
     if result.beats[0].start < 0:
         print("Отрицательный старт в таблице означает, что цикл начался до начала записи.")
     print("Выбранные параметры циклов (длительности в мс):")
-    print(" №   Старт, с   ЧСС   PQ  QRS   QT    P   ST    T")
+    print(" N   Старт, с   ЧСС   PQ  QRS   QT    P   ST    T")
     for number, beat in enumerate(result.beats, start=1):
         p = beat.parameters
         print(
@@ -99,6 +99,7 @@ def build_record_metadata(
         "rr_samples": rr_samples.tolist(),
         "rr_ms": rr_ms.tolist(),
         "beats": [asdict(beat) for beat in result.beats],
+        "annotations": extract_annotations(result.segments),
         "boundaries_samples": {
             name: positions.tolist() for name, positions in get_boundaries(result).items()
         },
@@ -118,6 +119,7 @@ def save_result(
     metadata = build_record_metadata(config, result)
     r_peak_samples = result.r_peak_samples
     rr_samples = np.diff(r_peak_samples)
+    np.save(f"{output_prefix}.npy", result.signal, allow_pickle=False)
     np.savez_compressed(
         f"{output_prefix}.npz",
         time_s=np.arange(len(result.signal)) / config.sample_rate,
@@ -163,8 +165,8 @@ def plot_result(
     save_path: Path | None = None,
     show: bool = True,
     title: str = "",
+    amplitude: float | tuple[float, float] = 1.5,
 ) -> None:
-    """Строит и сохраняет график; окно открывается отдельным show_plot()."""
     if not show:
         import matplotlib
         matplotlib.use("Agg")
@@ -177,10 +179,10 @@ def plot_result(
         save_path=save_path,
         show=show,
         title=title,
+        amplitude=amplitude,
     )
 
 
 def show_plot() -> None:
-    """Показывает подготовленный график после сохранения данных записи."""
     import matplotlib.pyplot as plt
     plt.show()

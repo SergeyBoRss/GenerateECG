@@ -42,6 +42,10 @@ def generate_base_ecg(config: EcgConfig) -> EcgResult:
         sampling_rate=config.sample_rate,
         noise_amplitude=config.noise_amplitude,
         random_state=config.seed,
+        baseline_wander_amplitude=config.baseline_wander_amplitude,
+        baseline_wander_frequency=config.baseline_wander_frequency,
+        baseline_sine_amplitude=config.baseline_sine_amplitude,
+        baseline_sine_frequency=config.baseline_sine_frequency,
     )
     return EcgResult(
         clean_signal=clean_signal,
@@ -132,6 +136,10 @@ def generate_stitched_ecg(config: StitchedEcgConfig) -> StitchedEcgResult:
         sampling_rate=config.sample_rate,
         noise_amplitude=config.noise_amplitude,
         random_state=config.seed,
+        baseline_wander_amplitude=config.baseline_wander_amplitude,
+        baseline_wander_frequency=config.baseline_wander_frequency,
+        baseline_sine_amplitude=config.baseline_sine_amplitude,
+        baseline_sine_frequency=config.baseline_sine_frequency,
     )
     return StitchedEcgResult(
         clean_signal, signal, segments, fiducials, beats,
@@ -148,6 +156,10 @@ def generate_record(
     noise_amplitude: float = 0.03,
     random_start: bool = True,
     variation_pct: float = StitchedEcgConfig().variation_pct,
+    baseline_wander_amplitude: float = StitchedEcgConfig().baseline_wander_amplitude,
+    baseline_wander_frequency: float = StitchedEcgConfig().baseline_wander_frequency,
+    baseline_sine_amplitude: float = StitchedEcgConfig().baseline_sine_amplitude,
+    baseline_sine_frequency: float = StitchedEcgConfig().baseline_sine_frequency,
 ) -> tuple[StitchedEcgConfig, StitchedEcgResult]:
     target_samples = round(duration_s * sample_rate)
 
@@ -171,6 +183,10 @@ def generate_record(
         random_start=random_start,
         noise_amplitude=noise_amplitude,
         variation_pct=variation_pct,
+        baseline_wander_amplitude=baseline_wander_amplitude,
+        baseline_wander_frequency=baseline_wander_frequency,
+        baseline_sine_amplitude=baseline_sine_amplitude,
+        baseline_sine_frequency=baseline_sine_frequency,
         pq_interval_ms=parameters.pq_ms,
         qt_interval_ms=parameters.qt_ms,
         qrs_duration_ms=parameters.qrs_ms,

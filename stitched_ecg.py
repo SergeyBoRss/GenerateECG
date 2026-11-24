@@ -35,7 +35,15 @@ def parse_args(argv: list[str] | None = None) -> CliOptions:
                         default=defaults.random_start,
                         help="Начинать запись со случайной позиции внутри цикла")
     parser.add_argument("--noise-amplitude", type=float, default=defaults.noise_amplitude,
-                        help="Амплитуда шума; 0 отключает шум")
+                        help="Амплитуда обычного шума; 0 отключает")
+    parser.add_argument("--baseline-wander-amplitude", type=float, default=defaults.baseline_wander_amplitude,
+                        help="Масштаб случайного дрейфа в долях std чистого сигнала; 0 отключает")
+    parser.add_argument("--baseline-wander-frequency", type=float, default=defaults.baseline_wander_frequency,
+                        help="Частота изменений случайного дрейфа, Гц")
+    parser.add_argument("--baseline-sine-amplitude", type=float, default=defaults.baseline_sine_amplitude,
+                        help="Амплитуда синусоидального дрейфа в долях std чистого сигнала; 0 отключает")
+    parser.add_argument("--baseline-sine-frequency", type=float, default=defaults.baseline_sine_frequency,
+                        help="Частота синусоидального дрейфа, Гц")
     parser.add_argument("--variation-pct", type=float, default=defaults.variation_pct,
                         help="Разброс параметров в процентах; 0 отключает разброс")
 
@@ -72,7 +80,7 @@ def parse_args(argv: list[str] | None = None) -> CliOptions:
 
     output = parser.add_argument_group("Сохранение результатов")
     output.add_argument("--output-prefix", type=Path,
-                        help="Путь без расширения для файлов PNG, NPZ и JSON")
+                        help="Путь без расширения для файлов PNG, NPY, NPZ и JSON")
     output.add_argument("--no-show", action="store_true",
                         help="Не открывать окно графика (для пакетной генерации)")
 
@@ -109,7 +117,7 @@ def main(argv: list[str] | None = None) -> None:
         )
         if options.output_prefix is not None:
             save_result(config, result, options.output_prefix)
-            print(f"Сохранено: {options.output_prefix}.{{png,npz,json}}")
+            print(f"Сохранено: {options.output_prefix}.{{png,npy,npz,json}}")
         if options.show:
             show_plot()
 

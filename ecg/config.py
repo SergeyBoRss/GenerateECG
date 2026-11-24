@@ -32,8 +32,13 @@ class EcgConfig:
     t_lean: float = 0  # Симметричная форма T
     s_to_qrs_duration_ratio: float = 0.15
 
-    # Шум NeuroKit.
+    # Шум NeuroKit
     noise_amplitude: float = 0.03
+    # Амплитуды базовой линии; 0 отключает
+    baseline_wander_amplitude: float = 0.0  # В долях std чистого сигнала
+    baseline_wander_frequency: float = 0.3  # Гц, частота изменений случайного дрейфа
+    baseline_sine_amplitude: float = 0.0  # В долях std чистого сигнала
+    baseline_sine_frequency: float = 0.2  # Гц, частота синусоиды
 
     @property
     def t_duration_ms(self) -> int:
@@ -67,6 +72,12 @@ class StitchedEcgConfig:
     random_start: bool = True  # False — начинать с начала первого P.
     noise_amplitude: float = 0.03
     variation_pct: float = 5.0  # Общий разброс ±5%; 0 отключает разброс.
+
+    # Амплитуды базовой линии
+    baseline_wander_amplitude: float = 0.0  # В долях std чистого сигнала; 0 отключает
+    baseline_wander_frequency: float = 0.3  # Гц, частота изменений случайного дрейфа.
+    baseline_sine_amplitude: float = 0.0  # В долях std чистого сигнала; 0 отключает
+    baseline_sine_frequency: float = 0.2  # Гц, частота синусоиды.
 
     # Базовые длительности
     pq_interval_ms: int = 150
