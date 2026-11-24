@@ -32,11 +32,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Разброс длительностей и параметров формы каждого цикла, ±%%; 0 отключает")
     parser.add_argument("--amplitude-variation-pct", type=float, default=defaults.amplitude_variation_pct,
                         help="Разброс амплитуд P, Q, R, S, T каждого цикла, ±%% (0–100); 0 отключает")
-    parser.add_argument("--no-p", type=float, default=0.0, metavar="PERCENT",
+    parser.add_argument("--no-p", type=float, default=10.0, metavar="PERCENT",
                         help="Вероятность отсутствия P на всей записи, %% (0–100)")
-    parser.add_argument("--negative-p", type=float, default=0.0, metavar="PERCENT",
+    parser.add_argument("--negative-p", type=float, default=10.0, metavar="PERCENT",
                         help="Вероятность инверсии P на всей записи, если P присутствует, %% (0–100)")
-    parser.add_argument("--negative-t", type=float, default=0.0, metavar="PERCENT",
+    parser.add_argument("--negative-t", type=float, default=10.0, metavar="PERCENT",
                         help="Вероятность инверсии T на всей записи, %% (0–100)")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/random_ecg"),
                         help="Папка набора: meta.csv и отдельный каталог на каждую запись")
