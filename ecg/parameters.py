@@ -40,7 +40,8 @@ def sample_beat_parameters(
     pq = integer("pq_interval_ms")
     qrs = integer("qrs_duration_ms")
     qt = integer("qt_interval_ms")
-    st = integer("st_duration_ms")
+    t = integer("t_duration_ms")
+    st = qt - qrs - t
 
     # Все параметры одного отведения заданы явно, без случайного пресета.
     params = EcgPresetParameters(
@@ -48,7 +49,7 @@ def sample_beat_parameters(
         pr_interval=pq,
         qrs_duration=qrs,
         st_length=st,
-        t_length=qt - qrs - st,
+        t_length=t,
         qt=qt,
         qtc=qt / np.cbrt(60 / heart_rate),
         flippers=[1],
@@ -89,4 +90,6 @@ def sample_record_parameters(
         hr_bpm=draw(preset.hr_bpm),
         seed=draw(preset.seed),
         shape=preset.shapes[int(rng.integers(len(preset.shapes)))],
+        p_ms=draw(preset.p_ms),
+        t_ms=draw(preset.t_ms),
     )

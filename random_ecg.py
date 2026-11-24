@@ -17,6 +17,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     for flag, dest, help_text in (
+        ("p", "p_ms", "Длительность P, мс"),
+        ("t", "t_ms", "Длительность T, мс"),
         ("pq", "pq_ms", "PQ, мс"),
         ("qtc", "qtc_ms", "QTc Fridericia, мс"),
         ("qrs", "qrs_ms", "QRS, мс"),
@@ -37,7 +39,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     overrides = {
         name: tuple(getattr(args, name))
-        for name in ("pq_ms", "qtc_ms", "qrs_ms", "hr_bpm")
+        for name in ("p_ms", "t_ms", "pq_ms", "qtc_ms", "qrs_ms", "hr_bpm")
         if getattr(args, name) is not None
     }
     args.sampling_ranges = SamplingPreset(**overrides)

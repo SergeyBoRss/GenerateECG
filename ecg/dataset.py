@@ -86,7 +86,7 @@ class RandomDatasetWriter:
             "sample_rate": config.sample_rate,
             "sample_count": len(result.signal),
             "duration_s": len(result.signal) / config.sample_rate,
-            **asdict(parameters),
+            **{name: value for name, value in asdict(parameters).items() if name in META_FIELDS},
             "qt_ms": parameters.qt_ms,
             "sampler_seed": sampler_seed,
             "record_index": record_index,

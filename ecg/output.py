@@ -74,7 +74,8 @@ def print_random_summary(
     sampler_seed: int,
 ) -> None:
     print(f"sampler_seed: {sampler_seed}")
-    print(f"PQ={parameters.pq_ms} мс; QTc={parameters.qtc_ms} мс (Fridericia); "
+    print(f"P={parameters.p_ms} мс; T={parameters.t_ms} мс; "
+          f"PQ={parameters.pq_ms} мс; QTc={parameters.qtc_ms} мс (Fridericia); "
           f"QT={parameters.qt_ms} мс; QRS={parameters.qrs_ms} мс")
     print(f"HR={parameters.hr_bpm} уд/мин; seed={parameters.seed}; форма={parameters.shape}; "
           f"разброс амплитуд=±{config.amplitude_variation_pct:g}%; "
@@ -154,7 +155,8 @@ def plot_random_result(
     plot_result(
         result.signal, config.sample_rate, get_boundaries(result),
         save_path=save_path, show=show,
-        title=(f"{parameters.shape} | PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms} | "
+        title=(f"{parameters.shape} | P={parameters.p_ms} | T={parameters.t_ms} | "
+               f"PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms} | "
                f"QRS={parameters.qrs_ms} ms | HR={parameters.hr_bpm} | "
                f"variation=±{config.variation_pct:g}% | "
                f"amplitude variation=±{config.amplitude_variation_pct:g}% | seed={parameters.seed}"),

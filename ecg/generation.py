@@ -166,6 +166,8 @@ def generate_record(
 
     # Проверка нужна и для прямого вызова с параметрами, без случайного выбора.
     SamplingPreset(
+        p_ms=(parameters.p_ms, parameters.p_ms),
+        t_ms=(parameters.t_ms, parameters.t_ms),
         pq_ms=(parameters.pq_ms, parameters.pq_ms),
         qtc_ms=(parameters.qtc_ms, parameters.qtc_ms),
         qrs_ms=(parameters.qrs_ms, parameters.qrs_ms),
@@ -189,6 +191,8 @@ def generate_record(
         baseline_wander_frequency=baseline_wander_frequency,
         baseline_sine_amplitude=baseline_sine_amplitude,
         baseline_sine_frequency=baseline_sine_frequency,
+        p_duration_ms=parameters.p_ms,
+        t_duration_ms=parameters.t_ms,
         pq_interval_ms=parameters.pq_ms,
         qt_interval_ms=parameters.qt_ms,
         qrs_duration_ms=parameters.qrs_ms,

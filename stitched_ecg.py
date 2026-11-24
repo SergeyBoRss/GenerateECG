@@ -58,8 +58,8 @@ def parse_args(argv: list[str] | None = None) -> CliOptions:
                            help="Интервал QT")
     durations.add_argument("--p-duration-ms", type=int, default=defaults.p_duration_ms,
                            help="Длительность P")
-    durations.add_argument("--st-duration-ms", type=int, default=defaults.st_duration_ms,
-                           help="Длительность ST")
+    durations.add_argument("--t-duration-ms", type=int, default=defaults.t_duration_ms,
+                           help="Длительность T; ST вычисляется как QT - QRS - T")
 
     morphology = parser.add_argument_group("Амплитуды и форма волн")
     morphology.add_argument("--p-voltage", type=float, default=defaults.p_voltage,

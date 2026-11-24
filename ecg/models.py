@@ -45,6 +45,8 @@ class SampledParameters:
     hr_bpm: int
     seed: int
     shape: str
+    t_ms: int
+    p_ms: int = 100
 
     @property
     def qt_ms(self) -> int:
