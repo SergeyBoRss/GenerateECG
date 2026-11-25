@@ -1,7 +1,7 @@
 import numpy as np
 from physiokit.ecg.defines import EcgSegment
 
-from .models import StitchedEcgResult
+from .models import EcgResult
 
 
 WAVE_STYLES = {
@@ -50,7 +50,7 @@ def make_ecg_lines(boundaries: dict[str, np.ndarray]) -> list[tuple[int, str]]:
     )
 
 
-def get_boundaries(result: StitchedEcgResult) -> dict[str, np.ndarray]:
+def get_boundaries(result: EcgResult) -> dict[str, np.ndarray]:
     with_previous = np.concatenate(([result.segment_before_start], result.segments))
     return {
         name: positions - 1

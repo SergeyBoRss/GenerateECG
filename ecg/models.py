@@ -5,14 +5,6 @@ from physiokit.ecg.defines import EcgFiducial, EcgSegment
 from physiokit.ecg.synthetic.defines import EcgPresetParameters
 
 
-@dataclass
-class EcgResult:
-    clean_signal: np.ndarray
-    signal: np.ndarray
-    fiducials: np.ndarray
-    segments: np.ndarray
-
-
 @dataclass(frozen=True)
 class BeatInfo:
     start: int  # Начало цикла относительно записи; может быть отрицательным.
@@ -22,7 +14,7 @@ class BeatInfo:
 
 
 @dataclass
-class StitchedEcgResult:
+class EcgResult:
     clean_signal: np.ndarray
     signal: np.ndarray
     segments: np.ndarray
@@ -40,17 +32,27 @@ class StitchedEcgResult:
 @dataclass(frozen=True)
 class SampledParameters:
     pq_ms: int
-    qtc_ms: int
+    qtc_ms: float
     qrs_ms: int
     hr_bpm: int
     seed: int
     shape: str
     t_ms: int
-    p_ms: int = 100
-    no_p: bool = False
-    negative_p: bool = False
-    negative_t: bool = False
-
-    @property
-    def qt_ms(self) -> int:
-        return round(self.qtc_ms * np.cbrt(60 / self.hr_bpm))
+    qt_ms: int
+    p_ms: int
+    no_p: bool
+    negative_p: bool
+    negative_t: bool
+    p_voltage: float
+    q_depth: float
+    r_height: float
+    s_depth: float
+    t_height: float
+    p_lean: float
+    t_lean: float
+    s_to_qrs_duration_ratio: float
+    noise_amplitude: float
+    baseline_wander_amplitude: float
+    baseline_wander_frequency: float
+    baseline_sine_amplitude: float
+    baseline_sine_frequency: float

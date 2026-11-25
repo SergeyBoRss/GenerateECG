@@ -1,51 +1,39 @@
+from math import ceil, floor
+
 import numpy as np
-from physiokit.ecg.synthetic import presets
 from physiokit.ecg.synthetic.defines import EcgPresetParameters
 
-from .config import EcgConfig, SamplingPreset, StitchedEcgConfig
+from .config import EcgConfig, parameter_bounds
 from .models import SampledParameters
-
-
-def build_parameters(config: EcgConfig) -> EcgPresetParameters:
-    params = presets.generate_preset_parameters(config.preset, config.heart_rate)
-    params.p_length = int(config.p_duration_ms)
-    params.pr_interval = int(config.pq_interval_ms)
-    params.qrs_duration = int(config.qrs_duration_ms)
-    params.st_length = int(config.st_duration_ms)
-    params.t_length = int(config.t_duration_ms)
-
-    params.p_voltages[0] = config.p_voltage
-    params.q_depths[0] = config.q_depth
-    params.r_heights[0] = config.r_height
-    params.s_depths[0] = config.s_depth
-    params.t_heights[0] = config.t_height
-    params.p_biphasics[0] = config.p_biphasic
-    params.t_leans[0] = config.t_lean
-    params.s_to_qrs_duration_ratio[0] = config.s_to_qrs_duration_ratio
-    return params
+from .morphology import MORPHOLOGY_PRESETS
 
 
 def sample_beat_parameters(
-    config: StitchedEcgConfig, rng: np.random.Generator
+    parameters: SampledParameters, config: EcgConfig, rng: np.random.Generator,
 ) -> tuple[int, EcgPresetParameters]:
     def integer(name: str) -> int:
-        low, high = config.parameter_bounds(name)
+        low, high = parameter_bounds(getattr(parameters, name), config.variation_pct, integer=True)
         return int(rng.integers(low, high + 1))
 
     def floating(name: str) -> float:
-        return float(rng.uniform(*config.parameter_bounds(name)))
+        variation_pct = (
+            config.amplitude_variation_pct
+            if name in ("p_voltage", "q_depth", "r_height", "s_depth", "t_height")
+            else config.variation_pct
+        )
+        return float(rng.uniform(*parameter_bounds(getattr(parameters, name), variation_pct)))
 
-    heart_rate = config.heart_rate
-    p = integer("p_duration_ms")
-    pq = integer("pq_interval_ms")
-    qrs = integer("qrs_duration_ms")
-    qt = integer("qt_interval_ms")
-    t = integer("t_duration_ms")
+    heart_rate = parameters.hr_bpm
+    p = integer("p_ms")
+    pq = integer("pq_ms")
+    qrs = integer("qrs_ms")
+    qt = integer("qt_ms")
+    t = integer("t_ms")
     st = qt - qrs - t
     p_voltage = floating("p_voltage")
-    if config.no_p:
+    if parameters.no_p:
         p_voltage = 0.0
-    elif config.negative_p:
+    elif parameters.negative_p:
         p_voltage *= -1
 
     # Все параметры одного отведения заданы явно, без случайного пресета.
@@ -67,45 +55,85 @@ def sample_beat_parameters(
         r_prime_heights=[0.0],
         r_to_r_prime_duration_ratio=[1.0],
         # Нулевая глубина убирает и зубец S, и его метку.
-        s_presents=[config.s_depth > 0],
+        s_presents=[parameters.s_depth > 0],
         s_depths=[floating("s_depth")],
         s_prime_heights=[0.0],
         s_to_qrs_duration_ratio=[floating("s_to_qrs_duration_ratio")],
         st_deltas=[0.0],
         j_points=[0.0],
-        t_heights=[floating("t_height") * (-1 if config.negative_t else 1)],
-        t_leans=[config.t_lean],
+        t_heights=[floating("t_height") * (-1 if parameters.negative_t else 1)],
+        t_leans=[parameters.t_lean],
     )
     return heart_rate, params
 
 
 def sample_record_parameters(
-    preset: SamplingPreset, rng: np.random.Generator,
-    *, variation_pct: float = StitchedEcgConfig().variation_pct,
+    config: EcgConfig, rng: np.random.Generator,
 ) -> SampledParameters:
-    preset.validate(variation_pct=variation_pct)
+    config.validate()
 
     def draw(bounds: tuple[int, int]) -> int:
         return int(rng.integers(bounds[0], bounds[1] + 1))
+
+    def floating(bounds: tuple[float, float]) -> float:
+        low, high = bounds
+        return float(low) if low == high else float(rng.uniform(low, high))
 
     def chance(percent: float) -> bool:
         return percent > 0 and bool(rng.random() < percent / 100)
 
     # Одно решение на всю запись; отсутствие P важнее её полярности.
-    no_p = chance(preset.no_p)
-    negative_p = chance(preset.negative_p) and not no_p
-    negative_t = chance(preset.negative_t)
+    no_p = chance(config.no_p)
+    negative_p = chance(config.negative_p) and not no_p
+    negative_t = chance(config.negative_t)
+
+    pq = draw(config.pq_ms)
+    qt_or_qtc = draw(config.qt_ms if config.qt_ms is not None else config.qtc_ms)
+    qrs = draw(config.qrs_ms)
+    hr = draw(config.hr_bpm)
+    seed = draw(config.seed)
+    shape = config.shapes[int(rng.integers(len(config.shapes)))]
+    p = draw(config.p_ms)
+    t = draw(config.t_ms)
+    if config.qt_ms is None:
+        qtc = qt_or_qtc
+        qt = round(qtc * np.cbrt(60 / hr))
+    else:
+        qt = qt_or_qtc
+        qtc = float(qt / np.cbrt(60 / hr))
+
+    morphology = MORPHOLOGY_PRESETS[shape]
+    if any(getattr(config, name) is not None for name in (
+        "q_depth", "r_height", "s_depth", "s_to_qrs_duration_ratio",
+    )):
+        shape = "custom"
+
+    def morphology_value(name: str) -> float:
+        bounds = getattr(config, name)
+        return getattr(morphology, name) if bounds is None else floating(bounds)
+
+    noise_low, noise_high = config.noise_amplitude
 
     return SampledParameters(
-        pq_ms=draw(preset.pq_ms),
-        qtc_ms=draw(preset.qtc_ms),
-        qrs_ms=draw(preset.qrs_ms),
-        hr_bpm=draw(preset.hr_bpm),
-        seed=draw(preset.seed),
-        shape=preset.shapes[int(rng.integers(len(preset.shapes)))],
-        p_ms=draw(preset.p_ms),
-        t_ms=draw(preset.t_ms),
+        pq_ms=pq, qtc_ms=qtc, qt_ms=qt, qrs_ms=qrs, hr_bpm=hr,
+        seed=seed, shape=shape, p_ms=p, t_ms=t,
         no_p=no_p,
         negative_p=negative_p,
         negative_t=negative_t,
+        p_voltage=floating(config.p_voltage),
+        q_depth=morphology_value("q_depth"),
+        r_height=morphology_value("r_height"),
+        s_depth=morphology_value("s_depth"),
+        t_height=floating(config.t_height),
+        p_lean=floating(config.p_lean),
+        t_lean=floating(config.t_lean),
+        s_to_qrs_duration_ratio=morphology_value("s_to_qrs_duration_ratio"),
+        noise_amplitude=(
+            float(noise_low) if noise_low == noise_high
+            else draw((ceil(noise_low * 1000), floor(noise_high * 1000))) / 1000
+        ),
+        baseline_wander_amplitude=floating(config.baseline_wander_amplitude),
+        baseline_wander_frequency=floating(config.baseline_wander_frequency),
+        baseline_sine_amplitude=floating(config.baseline_sine_amplitude),
+        baseline_sine_frequency=floating(config.baseline_sine_frequency),
     )

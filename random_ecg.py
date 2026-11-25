@@ -4,39 +4,68 @@ from pathlib import Path
 
 import numpy as np
 
-from ecg.config import SamplingPreset, StitchedEcgConfig
+from ecg.config import EcgConfig
 from ecg.dataset import RandomDatasetWriter
 from ecg.generation import generate_record
+from ecg.morphology import MORPHOLOGY_PRESETS
 from ecg.output import print_random_summary
 from ecg.parameters import sample_record_parameters
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    defaults = StitchedEcgConfig()
+    defaults = EcgConfig()
     parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Генерация ЭКГ из диапазонов параметров; MIN = MAX фиксирует значение на запись.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    for flag, dest, help_text in (
-        ("p", "p_ms", "Длительность P, мс"),
-        ("t", "t_ms", "Длительность T, мс"),
-        ("pq", "pq_ms", "PQ, мс"),
-        ("qtc", "qtc_ms", "QTc Fridericia, мс"),
-        ("qrs", "qrs_ms", "QRS, мс"),
-        ("hr", "hr_bpm", "HR, уд/мин"),
-    ):
-        parser.add_argument(f"--{flag}-range", dest=dest, type=int, nargs=2,
-                            metavar=("MIN", "MAX"), help=f"{help_text}; обе границы включены")
-    parser.add_argument("--duration", type=float, default=10.0, help="Длительность записи, с")
-    parser.add_argument("--sample-rate", type=int, default=1000, help="Частота дискретизации, Гц (100–1000)")
+    range_arguments = (
+        ("p", "p_ms", int, "Длительность P, мс"),
+        ("t", "t_ms", int, "Длительность T, мс"),
+        ("pq", "pq_ms", int, "PQ, мс"),
+        ("qrs", "qrs_ms", int, "QRS, мс"),
+        ("hr", "hr_bpm", int, "HR, уд/мин"),
+        ("seed", "seed", int, "Seed записи"),
+        ("p-voltage", "p_voltage", float, "Амплитуда P"),
+        ("q-depth", "q_depth", float, "Глубина Q; без аргумента — из формы QRS"),
+        ("r-height", "r_height", float, "Высота R; без аргумента — из формы QRS"),
+        ("s-depth", "s_depth", float, "Глубина S; без аргумента — из формы QRS"),
+        ("t-height", "t_height", float, "Высота T"),
+        ("p-lean", "p_lean", float, "Наклон P"),
+        ("t-lean", "t_lean", float, "Наклон T"),
+        ("s-to-qrs-duration-ratio", "s_to_qrs_duration_ratio", float,
+         "Отношение длительности S к QRS; без аргумента — из формы QRS"),
+        ("noise-amplitude", "noise_amplitude", float, "Мелкий шум, шаг 0.001; 0 0 отключает"),
+        ("baseline-wander-amplitude", "baseline_wander_amplitude", float,
+         "Амплитуда дрейфа в долях std чистого сигнала; 0 0 отключает"),
+        ("baseline-wander-frequency", "baseline_wander_frequency", float, "Частота дрейфа, Гц"),
+        ("baseline-sine-amplitude", "baseline_sine_amplitude", float,
+         "Амплитуда синусоиды в долях std чистого сигнала; 0 0 отключает"),
+        ("baseline-sine-frequency", "baseline_sine_frequency", float, "Частота синусоиды, Гц"),
+    )
+    for flag, dest, value_type, help_text in range_arguments:
+        parser.add_argument(f"--{flag}-range", dest=dest, type=value_type, nargs=2,
+                            default=getattr(defaults, dest), metavar=("MIN", "MAX"), help=help_text)
+    qt = parser.add_mutually_exclusive_group()
+    qt.add_argument("--qtc-range", dest="qtc_ms", type=int, nargs=2,
+                    metavar=("MIN", "MAX"),
+                    help="QTc Fridericia, мс; без QT/QTc аргументов используются диапазоны из конфига")
+    qt.add_argument("--qt-range", dest="qt_ms", type=int, nargs=2,
+                    metavar=("MIN", "MAX"), help="QT напрямую, мс; вместо выбора QTc")
+    parser.add_argument("--shapes", nargs="+", choices=tuple(MORPHOLOGY_PRESETS),
+                        default=defaults.shapes, help="Формы QRS; одна форма фиксирует выбор")
+    parser.add_argument("--random-start", action=argparse.BooleanOptionalAction,
+                        default=defaults.random_start, help="Случайное начало внутри цикла")
+    parser.add_argument("--duration", type=float, default=defaults.duration_s, help="Длительность записи, с")
+    parser.add_argument("--sample-rate", type=int, default=defaults.sample_rate, help="Частота дискретизации, Гц (100–1000)")
     parser.add_argument("--variation-pct", type=float, default=defaults.variation_pct,
                         help="Разброс длительностей и параметров формы каждого цикла, ±%%; 0 отключает")
     parser.add_argument("--amplitude-variation-pct", type=float, default=defaults.amplitude_variation_pct,
                         help="Разброс амплитуд P, Q, R, S, T каждого цикла, ±%% (0–100); 0 отключает")
-    parser.add_argument("--no-p", type=float, default=10.0, metavar="PERCENT",
+    parser.add_argument("--no-p", type=float, default=defaults.no_p, metavar="PERCENT",
                         help="Вероятность отсутствия P на всей записи, %% (0–100)")
-    parser.add_argument("--negative-p", type=float, default=10.0, metavar="PERCENT",
+    parser.add_argument("--negative-p", type=float, default=defaults.negative_p, metavar="PERCENT",
                         help="Вероятность инверсии P на всей записи, если P присутствует, %% (0–100)")
-    parser.add_argument("--negative-t", type=float, default=10.0, metavar="PERCENT",
+    parser.add_argument("--negative-t", type=float, default=defaults.negative_t, metavar="PERCENT",
                         help="Вероятность инверсии T на всей записи, %% (0–100)")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/random_ecg"),
                         help="Папка набора: meta.csv и отдельный каталог на каждую запись")
@@ -44,16 +73,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--save-images", action="store_true", help="Сохранять signal.png для каждой записи")
     args = parser.parse_args(argv)
     overrides = {
-        name: tuple(getattr(args, name))
-        for name in ("p_ms", "t_ms", "pq_ms", "qtc_ms", "qrs_ms", "hr_bpm")
-        if getattr(args, name) is not None
+        dest: tuple(getattr(args, dest))
+        for _, dest, _, _ in range_arguments
+        if getattr(args, dest) is not None
     }
-    args.sampling_ranges = SamplingPreset(
-        **overrides, no_p=args.no_p,
+    if args.qt_ms is not None:
+        qt_bounds, qtc_bounds = tuple(args.qt_ms), None
+    elif args.qtc_ms is not None:
+        qt_bounds, qtc_bounds = None, tuple(args.qtc_ms)
+    else:
+        qt_bounds = defaults.qt_ms
+        qtc_bounds = defaults.qtc_ms if qt_bounds is None else None
+    args.config = EcgConfig(
+        **overrides,
+        duration_s=args.duration, sample_rate=args.sample_rate,
+        random_start=args.random_start, variation_pct=args.variation_pct,
+        amplitude_variation_pct=args.amplitude_variation_pct,
+        qt_ms=qt_bounds, qtc_ms=qtc_bounds,
+        shapes=tuple(args.shapes), no_p=args.no_p,
         negative_p=args.negative_p, negative_t=args.negative_t,
     )
     try:
-        args.sampling_ranges.validate(variation_pct=args.variation_pct)
+        args.config.validate()
         if args.count < 1:
             raise ValueError("count должен быть положительным")
     except ValueError as exc:
@@ -63,6 +104,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
+    config = args.config
     sampler_seed = secrets.randbits(32)
     rng = np.random.default_rng(sampler_seed)
     try:
@@ -71,22 +113,10 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(str(exc)) from exc
     for record_index in range(1, args.count + 1):
         try:
-            parameters = sample_record_parameters(
-                args.sampling_ranges, rng, variation_pct=args.variation_pct,
-            )
-            config, result = generate_record(
-                parameters, duration_s=args.duration, sample_rate=args.sample_rate,
-                noise_amplitude=int(rng.integers(20, 36)) / 1000,  # 0.010–0.035, шаг 0.001
-                random_start=True,
-                variation_pct=args.variation_pct,
-                amplitude_variation_pct=args.amplitude_variation_pct,
-                baseline_wander_amplitude=float(rng.uniform(0.0, 1.0)),
-                baseline_wander_frequency=float(rng.uniform(0.25, 0.35)),
-                baseline_sine_amplitude=float(rng.uniform(0.0, 2.0)),
-                baseline_sine_frequency=float(rng.uniform(0.15, 0.25)),
-            )
+            parameters = sample_record_parameters(config, rng)
+            result = generate_record(parameters, config)
             record_dir = writer.save(
-                config, result, parameters, args.sampling_ranges, sampler_seed,
+                config, result, parameters, sampler_seed,
                 record_index=record_index, save_image=args.save_images, show_image=False,
             )
         except (OSError, ValueError) as exc:

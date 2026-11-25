@@ -1,5 +1,5 @@
 import random
-from dataclasses import asdict, replace
+from dataclasses import replace
 from math import ceil, floor
 
 import numpy as np
@@ -9,50 +9,13 @@ from physiokit.ecg.synthetic.defines import EcgPreset, EcgPresetParameters
 
 from ecg_noise import add_ecg_noise
 
-from .config import EcgConfig, SamplingPreset, StitchedEcgConfig
-from .models import BeatInfo, EcgResult, SampledParameters, StitchedEcgResult
-from .morphology import MORPHOLOGY_PRESETS
-from .parameters import build_parameters, sample_beat_parameters
+from .config import EcgConfig, validate_intervals
+from .models import BeatInfo, SampledParameters, EcgResult
+from .parameters import sample_beat_parameters
 
 
 def _no_smoothing(y, noise_multiplier=0.0, impedance=1.0):
     return np.asarray(y, dtype=float) / impedance
-
-
-def generate_base_ecg(config: EcgConfig) -> EcgResult:
-    config.validate()
-
-    random.seed(config.seed)
-    np.random.seed(config.seed)
-    rhythm_generator.smooth_and_noise = _no_smoothing
-    params = build_parameters(config)
-    _, ecg, segments, fiducials, _ = rhythm_generator.simulate_brisk(
-        signal_length=config.signal_length,
-        sample_rate=config.sample_rate,
-        heart_rate=config.heart_rate,
-        leads=1,
-        preset=config.preset,
-        parameters=params,
-        noise_multiplier=0.0,  # Шум добавляется отдельно
-    )
-
-    clean_signal = ecg[0].copy()
-    signal = add_ecg_noise(
-        clean_signal,
-        sampling_rate=config.sample_rate,
-        noise_amplitude=config.noise_amplitude,
-        random_state=config.seed,
-        baseline_wander_amplitude=config.baseline_wander_amplitude,
-        baseline_wander_frequency=config.baseline_wander_frequency,
-        baseline_sine_amplitude=config.baseline_sine_amplitude,
-        baseline_sine_frequency=config.baseline_sine_frequency,
-    )
-    return EcgResult(
-        clean_signal=clean_signal,
-        signal=signal,
-        fiducials=fiducials[0],
-        segments=segments[0],
-    )
 
 
 def generate_cycle(
@@ -93,19 +56,31 @@ def generate_cycle(
     return signal, segments, fiducials
 
 
-def generate_stitched_ecg(config: StitchedEcgConfig) -> StitchedEcgResult:
+def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResult:
     config.validate()
+    validate_intervals(
+        p_ms=(parameters.p_ms, parameters.p_ms),
+        pq_ms=(parameters.pq_ms, parameters.pq_ms),
+        qrs_ms=(parameters.qrs_ms, parameters.qrs_ms),
+        qt_ms=(parameters.qt_ms, parameters.qt_ms),
+        t_ms=(parameters.t_ms, parameters.t_ms),
+        hr_bpm=parameters.hr_bpm, variation_pct=config.variation_pct,
+    )
+    target_samples = round(config.duration_s * config.sample_rate)
+    min_cycle_samples = floor(int(60 / parameters.hr_bpm * 1000) * config.sample_rate / 1000)
+    beat_count = ceil(target_samples / min_cycle_samples)
+
     # Один генератор выбора параметров на всю запись, без сброса между циклами.
-    rng = np.random.default_rng(config.seed)
-    random.seed(config.seed)
+    rng = np.random.default_rng(parameters.seed)
+    random.seed(parameters.seed)
     signals, segment_arrays, fiducial_arrays = [], [], []
     beats = []
     offset = 0
 
-    for _ in range(config.beats + int(config.random_start)):
-        heart_rate, params = sample_beat_parameters(config, rng)
+    for _ in range(beat_count + int(config.random_start)):
+        heart_rate, params = sample_beat_parameters(parameters, config, rng)
         signal, segments, fiducials = generate_cycle(heart_rate, params, config.sample_rate)
-        if config.no_p:
+        if parameters.no_p:
             # Метки P нужны только для выделения цикла внутри generate_cycle.
             segments[segments == int(EcgSegment.p_wave)] = int(EcgSegment.tp_segment)
             fiducials[fiducials == int(EcgFiducial.p_wave)] = 0
@@ -120,7 +95,7 @@ def generate_stitched_ecg(config: StitchedEcgConfig) -> StitchedEcgResult:
     fiducials = np.concatenate(fiducial_arrays)
 
     # Дополнительный цикл позволяет сдвинуть начало, сохранив исходную длину.
-    window_length = beats[config.beats - 1].stop
+    window_length = beats[beat_count - 1].stop
     start = 0
     if config.random_start:
         max_offset = min(len(signals[0]) - 1, len(clean_signal) - window_length)
@@ -139,74 +114,18 @@ def generate_stitched_ecg(config: StitchedEcgConfig) -> StitchedEcgResult:
     signal = add_ecg_noise(
         clean_signal,
         sampling_rate=config.sample_rate,
-        noise_amplitude=config.noise_amplitude,
-        random_state=config.seed,
-        baseline_wander_amplitude=config.baseline_wander_amplitude,
-        baseline_wander_frequency=config.baseline_wander_frequency,
-        baseline_sine_amplitude=config.baseline_sine_amplitude,
-        baseline_sine_frequency=config.baseline_sine_frequency,
+        noise_amplitude=parameters.noise_amplitude,
+        random_state=parameters.seed,
+        baseline_wander_amplitude=parameters.baseline_wander_amplitude,
+        baseline_wander_frequency=parameters.baseline_wander_frequency,
+        baseline_sine_amplitude=parameters.baseline_sine_amplitude,
+        baseline_sine_frequency=parameters.baseline_sine_frequency,
     )
-    return StitchedEcgResult(
+    result = EcgResult(
         clean_signal, signal, segments, fiducials, beats,
         start_offset_samples=start,
         segment_before_start=previous_segment,
     )
-
-
-def generate_record(
-    parameters: SampledParameters,
-    *,
-    duration_s: float = 10.0,
-    sample_rate: int = 1000,
-    noise_amplitude: float = 0.03,
-    random_start: bool = True,
-    variation_pct: float = StitchedEcgConfig().variation_pct,
-    amplitude_variation_pct: float = StitchedEcgConfig().amplitude_variation_pct,
-    baseline_wander_amplitude: float = StitchedEcgConfig().baseline_wander_amplitude,
-    baseline_wander_frequency: float = StitchedEcgConfig().baseline_wander_frequency,
-    baseline_sine_amplitude: float = StitchedEcgConfig().baseline_sine_amplitude,
-    baseline_sine_frequency: float = StitchedEcgConfig().baseline_sine_frequency,
-) -> tuple[StitchedEcgConfig, StitchedEcgResult]:
-    target_samples = round(duration_s * sample_rate)
-
-    # Проверка нужна и для прямого вызова с параметрами, без случайного выбора.
-    SamplingPreset(
-        p_ms=(parameters.p_ms, parameters.p_ms),
-        t_ms=(parameters.t_ms, parameters.t_ms),
-        pq_ms=(parameters.pq_ms, parameters.pq_ms),
-        qtc_ms=(parameters.qtc_ms, parameters.qtc_ms),
-        qrs_ms=(parameters.qrs_ms, parameters.qrs_ms),
-        hr_bpm=(parameters.hr_bpm, parameters.hr_bpm),
-        seed=(parameters.seed, parameters.seed),
-        shapes=(parameters.shape,),
-    ).validate(variation_pct=variation_pct)
-
-    min_cycle_samples = floor(int(60 / parameters.hr_bpm * 1000) * sample_rate / 1000)
-
-    config = StitchedEcgConfig(
-        beats=ceil(target_samples / min_cycle_samples),
-        sample_rate=sample_rate,
-        heart_rate=parameters.hr_bpm,
-        seed=parameters.seed,
-        random_start=random_start,
-        noise_amplitude=noise_amplitude,
-        variation_pct=variation_pct,
-        amplitude_variation_pct=amplitude_variation_pct,
-        baseline_wander_amplitude=baseline_wander_amplitude,
-        baseline_wander_frequency=baseline_wander_frequency,
-        baseline_sine_amplitude=baseline_sine_amplitude,
-        baseline_sine_frequency=baseline_sine_frequency,
-        p_duration_ms=parameters.p_ms,
-        t_duration_ms=parameters.t_ms,
-        pq_interval_ms=parameters.pq_ms,
-        qt_interval_ms=parameters.qt_ms,
-        qrs_duration_ms=parameters.qrs_ms,
-        no_p=parameters.no_p,
-        negative_p=parameters.negative_p,
-        negative_t=parameters.negative_t,
-        **asdict(MORPHOLOGY_PRESETS[parameters.shape]),
-    )
-    result = generate_stitched_ecg(config)
     if len(result.signal) < target_samples:
         raise RuntimeError("Генератор вернул недостаточно отсчётов для заданной длительности")
     result = replace(
@@ -217,4 +136,4 @@ def generate_record(
         },
         beats=[beat for beat in result.beats if beat.stop > 0 and beat.start < target_samples],
     )
-    return config, result
+    return result
