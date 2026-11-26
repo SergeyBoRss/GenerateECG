@@ -132,6 +132,9 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
             segments[left:right] = segment_arrays[i][source]
             fiducials[left:right] = fiducial_arrays[i][source]
 
+    if parameters.negative_qrs:
+        clean_signal[segments == int(EcgSegment.qrs_complex)] *= -1
+
     signal = add_ecg_noise(
         clean_signal,
         sampling_rate=config.sample_rate,

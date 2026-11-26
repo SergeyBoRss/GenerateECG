@@ -42,6 +42,7 @@ class SampledParameters:
     p_ms: int
     no_p: bool
     negative_p: bool
+    negative_qrs: bool
     negative_t: bool
     p_voltage: float
     q_depth: float

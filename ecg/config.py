@@ -73,6 +73,7 @@ class EcgConfig:
 
     no_p: float = 10.0
     negative_p: float = 10.0
+    negative_qrs: float = 10.0
     negative_t: float = 10.0
 
     def validate(self) -> None:

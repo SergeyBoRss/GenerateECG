@@ -67,6 +67,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Вероятность отсутствия P на всей записи, %% (0–100)")
     parser.add_argument("--negative-p", type=float, default=defaults.negative_p, metavar="PERCENT",
                         help="Вероятность инверсии P на всей записи, если P присутствует, %% (0–100)")
+    parser.add_argument("--negative-qrs", type=float, default=defaults.negative_qrs, metavar="PERCENT",
+                        help="Вероятность инверсии всего QRS на всей записи, %% (0–100)")
     parser.add_argument("--negative-t", type=float, default=defaults.negative_t, metavar="PERCENT",
                         help="Вероятность инверсии T на всей записи, %% (0–100)")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/random_ecg"),
@@ -94,7 +96,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         rr_std_ms=args.rr_std_ms,
         qt_ms=qt_bounds, qtc_ms=qtc_bounds,
         shapes=tuple(args.shapes), no_p=args.no_p,
-        negative_p=args.negative_p, negative_t=args.negative_t,
+        negative_p=args.negative_p, negative_qrs=args.negative_qrs,
+        negative_t=args.negative_t,
     )
     try:
         args.config.validate()

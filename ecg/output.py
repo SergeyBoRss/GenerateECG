@@ -35,6 +35,8 @@ def print_random_summary(
         print("P отсутствует")
     elif parameters.negative_p:
         print("P инвертирована")
+    if parameters.negative_qrs:
+        print("QRS инвертирован")
     if parameters.negative_t:
         print("T инвертирована")
     print(f"Длительность: {len(result.signal) / config.sample_rate:g} с; "
@@ -53,13 +55,14 @@ def plot_random_result(
     p_label = "absent" if parameters.no_p else f"{parameters.p_ms} ms"
     if parameters.negative_p and not parameters.no_p:
         p_label += " (inverted)"
+    qrs_label = f"{parameters.qrs_ms} ms" + (" (inverted)" if parameters.negative_qrs else "")
     t_label = f"{parameters.t_ms} ms" + (" (inverted)" if parameters.negative_t else "")
     plot_result(
         result.signal, config.sample_rate, get_boundaries(result),
         save_path=save_path, show=show,
         title=(f"{parameters.shape} | P={p_label} | T={t_label} | "
                f"PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms} | "
-               f"QRS={parameters.qrs_ms} ms | HR={parameters.hr_bpm} | "
+               f"QRS={qrs_label} | HR={parameters.hr_bpm} | "
                f"RR std={config.rr_std_ms:g} ms | "
                f"variation=±{config.variation_pct:g}% | "
                f"amplitude variation=±{config.amplitude_variation_pct:g}% | seed={parameters.seed}"),

@@ -85,6 +85,7 @@ def sample_record_parameters(
     # Одно решение на всю запись; отсутствие P важнее её полярности.
     no_p = chance(config.no_p)
     negative_p = chance(config.negative_p) and not no_p
+    negative_qrs = chance(config.negative_qrs)
     negative_t = chance(config.negative_t)
 
     pq = draw(config.pq_ms)
@@ -119,6 +120,7 @@ def sample_record_parameters(
         seed=seed, shape=shape, p_ms=p, t_ms=t,
         no_p=no_p,
         negative_p=negative_p,
+        negative_qrs=negative_qrs,
         negative_t=negative_t,
         p_voltage=floating(config.p_voltage),
         q_depth=morphology_value("q_depth"),
