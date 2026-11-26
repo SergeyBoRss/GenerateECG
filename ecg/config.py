@@ -78,7 +78,7 @@ def validate_intervals(
 
 @dataclass(frozen=True)
 class EcgConfig:
-    seed: int | None = None  # None — новый случайный seed для каждой записи
+    seed: int | None = None
     duration_s: float = 10.0
     sample_rate: int = 1000
     random_start: bool = True

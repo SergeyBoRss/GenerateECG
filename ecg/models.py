@@ -25,7 +25,7 @@ class EcgResult:
 
     @property
     def r_peak_samples(self) -> np.ndarray:
-        """Позиции меток R относительно начала готовой записи, в отсчётах."""
+        """Позиции меток R относительно начала готовой записи, в отсчётах"""
         return np.flatnonzero(self.fiducials == int(EcgFiducial.r_peak))
 
 

@@ -178,8 +178,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=defaults.seed,
         help=(
-            "Seed каждой ЭКГ; если не задан в конфиге, "
-            "выбирается случайно для каждой записи"
+            "Общий seed генератора сидов записей; "
+            "если не задан в конфиге, выбирается случайно"
         ),
     )
     parser.add_argument(

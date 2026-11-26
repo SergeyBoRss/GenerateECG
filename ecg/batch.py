@@ -22,6 +22,7 @@ def _generate_and_save_record(
     output_dir: Path,
     record_index: int,
     save_image: bool,
+    sampler_seed: int,
 ) -> tuple[dict[str, object], str]:
     rng = np.random.default_rng(config.seed)
     parameters = sample_record_parameters(config, rng)
@@ -31,6 +32,7 @@ def _generate_and_save_record(
         config,
         result,
         parameters,
+        sampler_seed=sampler_seed,
         record_index=record_index,
         save_image=save_image,
     )
@@ -50,15 +52,15 @@ def generate_dataset(
     save_images: bool = False,
 ) -> Path:
     writer = RandomDatasetWriter(output_dir)
+    sampler_seed = config.seed if config.seed is not None else secrets.randbits(32)
+    seed_rng = np.random.default_rng(sampler_seed)
     tasks = (
         (
-            replace(
-                config,
-                seed=config.seed if config.seed is not None else secrets.randbits(32),
-            ),
+            replace(config, seed=int(seed_rng.integers(0, 2**32))),
             writer.output_dir,
             record_index,
             save_images,
+            sampler_seed,
         )
         for record_index in range(1, count + 1)
     )
