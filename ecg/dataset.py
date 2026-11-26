@@ -76,6 +76,21 @@ class RandomDatasetWriter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.meta_path = self.output_dir / "meta.csv"
 
+    def next_record_index(self) -> int:
+        numbers = (
+            path.name.removeprefix("record_")
+            for path in self.output_dir.glob("record_*")
+        )
+        last_index = max(
+            (int(number) for number in numbers if number.isdecimal()), default=0,
+        )
+        if self.meta_path.exists():
+            with self.meta_path.open(encoding="utf-8", newline="") as stream:
+                for row in csv.DictReader(stream):
+                    record_index = int(row["record_id"].removeprefix("record_"))
+                    last_index = max(last_index, record_index)
+        return last_index + 1
+
     def append(self, row: dict[str, object]) -> None:
         write_header = not self.meta_path.exists() or self.meta_path.stat().st_size == 0
         if not write_header:

@@ -170,9 +170,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=Path("outputs/random_ecg"),
-        help="Папка набора: meta.csv и отдельный каталог на каждую запись",
+        help="Папка набора; новые записи и строки meta.csv добавляются к существующим",
     )
-    parser.add_argument("--count", type=int, default=1, help="Количество записей")
+    parser.add_argument("--count", type=int, default=1, help="Количество новых записей")
     parser.add_argument(
         "--seed",
         type=int,

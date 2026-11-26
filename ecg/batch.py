@@ -52,6 +52,7 @@ def generate_dataset(
     save_images: bool = False,
 ) -> Path:
     writer = RandomDatasetWriter(output_dir)
+    first_record_index = writer.next_record_index()
     sampler_seed = config.seed if config.seed is not None else secrets.randbits(32)
     seed_rng = np.random.default_rng(sampler_seed)
     tasks = (
@@ -62,7 +63,7 @@ def generate_dataset(
             save_images,
             sampler_seed,
         )
-        for record_index in range(1, count + 1)
+        for record_index in range(first_record_index, first_record_index + count)
     )
     workers = min(workers, count)
     if workers == 1:
