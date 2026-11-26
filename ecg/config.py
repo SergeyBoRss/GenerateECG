@@ -1,13 +1,35 @@
 from dataclasses import dataclass
 from math import ceil, floor
+from typing import Literal, overload
 
 import numpy as np
 
 from .morphology import MORPHOLOGY_PRESETS
 
 
+@overload
 def parameter_bounds(
-    value: float, variation_pct: float, *, integer: bool = False,
+    value: float,
+    variation_pct: float,
+    *,
+    integer: Literal[True],
+) -> tuple[int, int]: ...
+
+
+@overload
+def parameter_bounds(
+    value: float,
+    variation_pct: float,
+    *,
+    integer: Literal[False] = False,
+) -> tuple[float, float]: ...
+
+
+def parameter_bounds(
+    value: float,
+    variation_pct: float,
+    *,
+    integer: bool = False,
 ) -> tuple[int, int] | tuple[float, float]:
     delta = abs(value) * variation_pct / 100
     low, high = value - delta, value + delta
@@ -15,23 +37,41 @@ def parameter_bounds(
 
 
 def validate_intervals(
-    *, p_ms: tuple[int, int], pq_ms: tuple[int, int], qrs_ms: tuple[int, int],
-    qt_ms: tuple[int, int], t_ms: tuple[int, int], hr_bpm: int, variation_pct: float,
+    *,
+    p_ms: tuple[int, int],
+    pq_ms: tuple[int, int],
+    qrs_ms: tuple[int, int],
+    qt_ms: tuple[int, int],
+    t_ms: tuple[int, int],
+    hr_bpm: int,
+    variation_pct: float,
 ) -> None:
     bounds = {}
     for name, (low, high) in (
-        ("P", p_ms), ("PQ", pq_ms), ("QRS", qrs_ms), ("QT", qt_ms), ("T", t_ms),
+        ("P", p_ms),
+        ("PQ", pq_ms),
+        ("QRS", qrs_ms),
+        ("QT", qt_ms),
+        ("T", t_ms),
     ):
         bounds[name] = (
             parameter_bounds(low, variation_pct, integer=True)[0],
             parameter_bounds(high, variation_pct, integer=True)[1],
         )
         if bounds[name][0] <= 0:
-            raise ValueError(f"{name}: разброс должен оставлять длительность положительной")
+            raise ValueError(
+                f"{name}: разброс должен оставлять длительность положительной",
+            )
     if bounds["P"][1] >= bounds["PQ"][0]:
-        raise ValueError("Максимальная P должна быть строго меньше минимального PQ с учётом разброса")
+        raise ValueError(
+            "Максимальная P должна быть строго меньше минимального PQ "
+            "с учётом разброса",
+        )
     if bounds["QT"][0] < bounds["QRS"][1] + bounds["T"][1]:
-        raise ValueError("Минимальный QT должен быть не меньше максимальных QRS + T с учётом разброса")
+        raise ValueError(
+            "Минимальный QT должен быть не меньше максимальных QRS + T "
+            "с учётом разброса",
+        )
     if bounds["PQ"][1] + bounds["QT"][1] >= int(60 / hr_bpm * 1000):
         raise ValueError("Максимальные PQ + QT должны помещаться в RR")
 
@@ -79,18 +119,29 @@ class EcgConfig:
     def validate(self) -> None:
         for name in ("p_lean", "s_to_qrs_duration_ratio"):
             bounds = getattr(self, name)
-            if bounds is not None and parameter_bounds(bounds[0], self.variation_pct)[0] < 0:
-                raise ValueError(f"{name}: разброс не должен давать отрицательные значения")
+            if (
+                bounds is not None
+                and parameter_bounds(bounds[0], self.variation_pct)[0] < 0
+            ):
+                raise ValueError(
+                    f"{name}: разброс не должен давать отрицательные значения",
+                )
         # Проверяем крайние сочетания с учётом разброса внутри записи:
         # максимальные P/QRS/T с минимальными PQ/QT, затем максимальные PQ/QT
         for hr in range(self.hr_bpm[1], self.hr_bpm[0] - 1, -1):
-            qt_bounds = self.qt_ms if self.qt_ms is not None else tuple(
-                round(qtc * np.cbrt(60 / hr)) for qtc in self.qtc_ms
-            )
+            if self.qt_ms is not None:
+                qt_bounds = self.qt_ms
+            else:
+                assert self.qtc_ms is not None
+                qt_bounds = tuple(round(qtc * np.cbrt(60 / hr)) for qtc in self.qtc_ms)
             try:
                 validate_intervals(
-                    p_ms=self.p_ms, pq_ms=self.pq_ms, qrs_ms=self.qrs_ms,
-                    qt_ms=qt_bounds, t_ms=self.t_ms, hr_bpm=hr,
+                    p_ms=self.p_ms,
+                    pq_ms=self.pq_ms,
+                    qrs_ms=self.qrs_ms,
+                    qt_ms=qt_bounds,
+                    t_ms=self.t_ms,
+                    hr_bpm=hr,
                     variation_pct=self.variation_pct,
                 )
             except ValueError as exc:

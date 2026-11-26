@@ -1,27 +1,31 @@
-import numpy as np
 import neurokit2 as nk
+import numpy as np
 
 
 def add_ecg_noise(
-    signal,
-    sampling_rate=1000,
-    noise_amplitude=0.05,
-    noise_frequency=(5, 10, 100),
-    noise_shape="laplace",
-    random_state=None,
+    signal: np.ndarray,
+    sampling_rate: int = 1000,
+    noise_amplitude: float = 0.05,
+    noise_frequency: tuple[float, ...] = (5, 10, 100),
+    noise_shape: str = "laplace",
+    random_state: int | None = None,
     *,
-    baseline_wander_amplitude=0.0,
-    baseline_wander_frequency=0.3,
-    baseline_sine_amplitude=0.0,
-    baseline_sine_frequency=0.2,
-):
+    baseline_wander_amplitude: float = 0.0,
+    baseline_wander_frequency: float = 0.3,
+    baseline_sine_amplitude: float = 0.0,
+    baseline_sine_frequency: float = 0.2,
+) -> np.ndarray:
     signal = np.asarray(signal, dtype=float)
     for name, amplitude, frequency in (
         ("baseline_wander", baseline_wander_amplitude, baseline_wander_frequency),
         ("baseline_sine", baseline_sine_amplitude, baseline_sine_frequency),
     ):
-        if amplitude > 0 and (not np.isfinite(frequency) or not 0 < frequency <= sampling_rate / 10):
-            raise ValueError(f"{name}_frequency должна быть > 0 и <= {sampling_rate / 10} Гц")
+        if amplitude > 0 and (
+            not np.isfinite(frequency) or not 0 < frequency <= sampling_rate / 10
+        ):
+            raise ValueError(
+                f"{name}_frequency должна быть > 0 и <= {sampling_rate / 10} Гц",
+            )
 
     noisy_signal = signal.copy()
     if noise_amplitude > 0:

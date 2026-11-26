@@ -1,0 +1,22 @@
+image: python:3.12-bookworm
+
+stages:
+  - lint
+
+cache:
+  paths:
+    - .cache/pip
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+lint:
+  stage: lint
+  script:
+    - python3 -m venv .venv
+    - source .venv/bin/activate
+
+    - pip install --upgrade pip
+    - pip install ".[lint]"
+
+    - bash scripts/lint.sh

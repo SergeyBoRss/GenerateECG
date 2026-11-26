@@ -1,6 +1,6 @@
 import secrets
 from collections import deque
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Future, ProcessPoolExecutor
 from contextlib import redirect_stdout
 from dataclasses import replace
 from io import StringIO
@@ -18,31 +18,48 @@ from .parameters import sample_record_parameters
 
 
 def _generate_and_save_record(
-    config: EcgConfig, output_dir: Path,
-    record_index: int, save_image: bool,
-) -> tuple[dict, str]:
+    config: EcgConfig,
+    output_dir: Path,
+    record_index: int,
+    save_image: bool,
+) -> tuple[dict[str, object], str]:
     rng = np.random.default_rng(config.seed)
     parameters = sample_record_parameters(config, rng)
     result = generate_record(parameters, config)
     row = save_record(
-        output_dir, config, result, parameters,
-        record_index=record_index, save_image=save_image,
+        output_dir,
+        config,
+        result,
+        parameters,
+        record_index=record_index,
+        save_image=save_image,
     )
     summary = StringIO()
     with redirect_stdout(summary):
         print_random_summary(parameters, config, result)
-        print(f"Сохранено: {output_dir / row['record_id']}")
+        print(f"Сохранено: {output_dir / str(row['record_id'])}")
     return row, summary.getvalue()
 
 
 def generate_dataset(
-    config: EcgConfig, output_dir: Path, *,
-    count: int = 1, workers: int = 1, save_images: bool = False,
+    config: EcgConfig,
+    output_dir: Path,
+    *,
+    count: int = 1,
+    workers: int = 1,
+    save_images: bool = False,
 ) -> Path:
     writer = RandomDatasetWriter(output_dir)
     tasks = (
-        (replace(config, seed=config.seed if config.seed is not None else secrets.randbits(32)),
-         writer.output_dir, record_index, save_images)
+        (
+            replace(
+                config,
+                seed=config.seed if config.seed is not None else secrets.randbits(32),
+            ),
+            writer.output_dir,
+            record_index,
+            save_images,
+        )
         for record_index in range(1, count + 1)
     )
     workers = min(workers, count)
@@ -52,8 +69,10 @@ def generate_dataset(
             writer.append(row)
             print(summary, end="")
     else:
-        with ProcessPoolExecutor(max_workers=workers, mp_context=get_context("spawn")) as executor:
-            pending = deque()
+        with ProcessPoolExecutor(
+            max_workers=workers, mp_context=get_context("spawn"),
+        ) as executor:
+            pending: deque[Future[tuple[dict[str, object], str]]] = deque()
             try:
                 for task in islice(tasks, workers * 2):
                     pending.append(executor.submit(_generate_and_save_record, *task))
@@ -61,9 +80,11 @@ def generate_dataset(
                     row, summary = pending.popleft().result()
                     writer.append(row)
                     print(summary, end="")
-                    task = next(tasks, None)
-                    if task is not None:
-                        pending.append(executor.submit(_generate_and_save_record, *task))
+                    next_task = next(tasks, None)
+                    if next_task is not None:
+                        pending.append(
+                            executor.submit(_generate_and_save_record, *next_task),
+                        )
             finally:
                 for future in pending:
                     future.cancel()

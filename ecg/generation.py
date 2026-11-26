@@ -10,17 +10,19 @@ from physiokit.ecg.synthetic.defines import EcgPreset, EcgPresetParameters
 from ecg_noise import add_ecg_noise
 
 from .config import EcgConfig, validate_intervals
-from .models import BeatInfo, SampledParameters, EcgResult
+from .models import BeatInfo, EcgResult, SampledParameters
 from .parameters import sample_beat_parameters
 from .rr import RrDistribution
 
 
-def _no_smoothing(y, noise_multiplier=0.0, impedance=1.0):
+def _no_smoothing(
+    y: np.ndarray, noise_multiplier: float = 0.0, impedance: float = 1.0,
+) -> np.ndarray:
     return np.asarray(y, dtype=float) / impedance
 
 
 def generate_cycle(
-    heart_rate: int, params: EcgPresetParameters, sample_rate: int
+    heart_rate: int, params: EcgPresetParameters, sample_rate: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     expected_cycle_samples = 60 / heart_rate * sample_rate
     rhythm_generator.smooth_and_noise = _no_smoothing
@@ -51,7 +53,10 @@ def generate_cycle(
         segments[tail_start:] = int(EcgSegment.tp_segment)
 
     # Фактические R–R считаются по меткам в готовой записи, где есть соседние R.
-    if abs(len(signal) - expected_cycle_samples) >= 2 or np.count_nonzero(fiducials == int(EcgFiducial.r_peak)) != 1:
+    if (
+        abs(len(signal) - expected_cycle_samples) >= 2
+        or np.count_nonzero(fiducials == int(EcgFiducial.r_peak)) != 1
+    ):
         raise RuntimeError("Не удалось выделить один полный цикл с одним R-пиком")
 
     return signal, segments, fiducials
@@ -65,7 +70,8 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
         qrs_ms=(parameters.qrs_ms, parameters.qrs_ms),
         qt_ms=(parameters.qt_ms, parameters.qt_ms),
         t_ms=(parameters.t_ms, parameters.t_ms),
-        hr_bpm=parameters.hr_bpm, variation_pct=config.variation_pct,
+        hr_bpm=parameters.hr_bpm,
+        variation_pct=config.variation_pct,
     )
     target_samples = round(config.duration_s * config.sample_rate)
 
@@ -79,7 +85,9 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
 
     while covered_samples < target_samples:
         heart_rate, params = sample_beat_parameters(parameters, config, rng)
-        signal, segments, fiducials = generate_cycle(heart_rate, params, config.sample_rate)
+        signal, segments, fiducials = generate_cycle(
+            heart_rate, params, config.sample_rate,
+        )
         r_offsets.append(int(np.flatnonzero(fiducials == int(EcgFiducial.r_peak))[0]))
 
         occupied = (segments != int(EcgSegment.tp_segment)) | (fiducials != 0)
@@ -101,7 +109,8 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
     mean_rr = 60 / parameters.hr_bpm * config.sample_rate
 
     distribution = RrDistribution(
-        mean=mean_rr, std=config.rr_std_ms * config.sample_rate / 1000,
+        mean=mean_rr,
+        std=config.rr_std_ms * config.sample_rate / 1000,
         minimum=minimum_rr,
     )
     rr_samples = distribution.sample(rng, len(beats) - 1)
@@ -111,7 +120,8 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
 
     start = int(rng.integers(cycle_starts[1])) if config.random_start else 0
     previous_segment = (
-        int(segment_arrays[0][start - 1]) if 0 < start <= len(segment_arrays[0])
+        int(segment_arrays[0][start - 1])
+        if 0 < start <= len(segment_arrays[0])
         else int(EcgSegment.tp_segment)
     )
 
@@ -146,7 +156,11 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
         baseline_sine_frequency=parameters.baseline_sine_frequency,
     )
     return EcgResult(
-        clean_signal, signal, segments, fiducials, placed_beats,
+        clean_signal,
+        signal,
+        segments,
+        fiducials,
+        placed_beats,
         start_offset_samples=start,
         segment_before_start=previous_segment,
     )

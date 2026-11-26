@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "generate-ecg"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy==2.5.5",
+    "scipy==1.18.1",
+    "physiokit==0.11.0",
+    "neurokit2==0.3.0",
+    "matplotlib==3.11.2",
+    "ml-validation @ git+https://gitlab.com/moskalenkoviktor/ml_validation@8c1d1907098fdade773397701e032ec801a847a1",
+]
+
+[project.optional-dependencies]
+lint = [
+    "mypy>=1.10.0,<2.0.0",
+    "flake8>=7.0.0,<8.0.0",
+    "Flake8-pyproject>=1.2.0,<2.0.0",
+    "flake8-quotes>=3.4.0,<4.0.0",
+    "flake8-commas>=4.0.0,<5.0.0",
+    "isort>=5.13.0,<6.0.0",
+    "pydoclint>=0.9.1,<1.0.0",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+only-include = ["ecg", "ecg_noise.py", "random_ecg.py"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = "E203,E701"
+inline-quotes = "double"
+style = "google"
+arg-type-hints-in-docstring = false
+check-return-types = false
+skip-checking-raises = true
+
+[tool.mypy]
+strict = true
+no_incremental = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_any_generics = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+allow_untyped_decorators = true
+namespace_packages = true
+explicit_package_bases = true
+
+[tool.isort]
+line_length = 88

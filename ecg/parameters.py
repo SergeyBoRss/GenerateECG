@@ -9,10 +9,14 @@ from .morphology import MORPHOLOGY_PRESETS
 
 
 def sample_beat_parameters(
-    parameters: SampledParameters, config: EcgConfig, rng: np.random.Generator,
+    parameters: SampledParameters,
+    config: EcgConfig,
+    rng: np.random.Generator,
 ) -> tuple[int, EcgPresetParameters]:
     def integer(name: str) -> int:
-        low, high = parameter_bounds(getattr(parameters, name), config.variation_pct, integer=True)
+        low, high = parameter_bounds(
+            getattr(parameters, name), config.variation_pct, integer=True,
+        )
         return int(rng.integers(low, high + 1))
 
     def floating(name: str) -> float:
@@ -21,7 +25,9 @@ def sample_beat_parameters(
             if name in ("p_voltage", "q_depth", "r_height", "s_depth", "t_height")
             else config.variation_pct
         )
-        return float(rng.uniform(*parameter_bounds(getattr(parameters, name), variation_pct)))
+        return float(
+            rng.uniform(*parameter_bounds(getattr(parameters, name), variation_pct)),
+        )
 
     heart_rate = parameters.hr_bpm
     p = integer("p_ms")
@@ -68,9 +74,12 @@ def sample_beat_parameters(
 
 
 def sample_record_parameters(
-    config: EcgConfig, rng: np.random.Generator,
+    config: EcgConfig,
+    rng: np.random.Generator,
 ) -> SampledParameters:
     config.validate()
+    # generate_dataset назначает seed записи до выбора её параметров.
+    assert config.seed is not None
 
     def draw(bounds: tuple[int, int]) -> int:
         return int(rng.integers(bounds[0], bounds[1] + 1))
@@ -89,23 +98,31 @@ def sample_record_parameters(
     negative_t = chance(config.negative_t)
 
     pq = draw(config.pq_ms)
-    qt_or_qtc = draw(config.qt_ms if config.qt_ms is not None else config.qtc_ms)
+    qt_bounds = config.qt_ms if config.qt_ms is not None else config.qtc_ms
+    assert qt_bounds is not None
+    qt_or_qtc = draw(qt_bounds)
     qrs = draw(config.qrs_ms)
     hr = draw(config.hr_bpm)
     shape = config.shapes[int(rng.integers(len(config.shapes)))]
     p = draw(config.p_ms)
     t = draw(config.t_ms)
     if config.qt_ms is None:
-        qtc = qt_or_qtc
+        qtc: float = qt_or_qtc
         qt = round(qtc * np.cbrt(60 / hr))
     else:
         qt = qt_or_qtc
         qtc = float(qt / np.cbrt(60 / hr))
 
     morphology = MORPHOLOGY_PRESETS[shape]
-    if any(getattr(config, name) is not None for name in (
-        "q_depth", "r_height", "s_depth", "s_to_qrs_duration_ratio",
-    )):
+    if any(
+        getattr(config, name) is not None
+        for name in (
+            "q_depth",
+            "r_height",
+            "s_depth",
+            "s_to_qrs_duration_ratio",
+        )
+    ):
         shape = "custom"
 
     def morphology_value(name: str) -> float:
@@ -115,8 +132,15 @@ def sample_record_parameters(
     noise_low, noise_high = config.noise_amplitude
 
     return SampledParameters(
-        pq_ms=pq, qtc_ms=qtc, qt_ms=qt, qrs_ms=qrs, hr_bpm=hr,
-        seed=config.seed, shape=shape, p_ms=p, t_ms=t,
+        pq_ms=pq,
+        qtc_ms=qtc,
+        qt_ms=qt,
+        qrs_ms=qrs,
+        hr_bpm=hr,
+        seed=config.seed,
+        shape=shape,
+        p_ms=p,
+        t_ms=t,
         no_p=no_p,
         negative_p=negative_p,
         negative_qrs=negative_qrs,
@@ -130,7 +154,8 @@ def sample_record_parameters(
         t_lean=floating(config.t_lean),
         s_to_qrs_duration_ratio=morphology_value("s_to_qrs_duration_ratio"),
         noise_amplitude=(
-            float(noise_low) if noise_low == noise_high
+            float(noise_low)
+            if noise_low == noise_high
             else draw((ceil(noise_low * 1000), floor(noise_high * 1000))) / 1000
         ),
         baseline_wander_amplitude=floating(config.baseline_wander_amplitude),

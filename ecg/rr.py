@@ -1,4 +1,5 @@
 from math import erf, expm1, isfinite, sqrt
+from typing import overload
 
 import numpy as np
 from scipy.optimize import brentq
@@ -19,7 +20,9 @@ class RrDistribution:
         self.std = float(std)
         self.minimum = float(minimum)
         if self.mean < self.minimum or (self.std > 0 and self.mean == self.minimum):
-            raise ValueError("Для разброса RR среднее должно быть больше нижней границы")
+            raise ValueError(
+                "Для разброса RR среднее должно быть больше нижней границы",
+            )
         if self.std == 0:
             return
 
@@ -27,16 +30,22 @@ class RrDistribution:
         relative_distance = distance / self.std
 
         def relative_std(scale_ratio: float) -> float:
-            mean_ratio, second_moment = _relative_moments(relative_distance / scale_ratio)
+            mean_ratio, second_moment = _relative_moments(
+                relative_distance / scale_ratio,
+            )
             return scale_ratio * sqrt((mean_ratio + second_moment) / (1 + mean_ratio))
 
         upper = 2.0
         while relative_std(upper) < 1:
             upper *= 2
             if not isfinite(upper):
-                raise ValueError("Заданный разброс RR не представим с этой нижней границей")
+                raise ValueError(
+                    "Заданный разброс RR не представим с этой нижней границей",
+                )
 
-        self._scale = self.std * brentq(lambda value: relative_std(value) - 1, 1.0, upper)
+        self._scale = self.std * brentq(
+            lambda value: relative_std(value) - 1, 1.0, upper,
+        )
         if not isfinite(self._scale):
             raise ValueError("Масштаб распределения RR выходит за диапазон float")
         limit = distance / self._scale
@@ -44,8 +53,24 @@ class RrDistribution:
         self._positive_probability = mean_ratio / (1 + mean_ratio)
         self._left_mass = erf(limit / sqrt(2))
 
+    @overload
     def sample(
-        self, rng: np.random.Generator, size: int | tuple[int, ...] | None = None,
+        self,
+        rng: np.random.Generator,
+        size: None = None,
+    ) -> float: ...
+
+    @overload
+    def sample(
+        self,
+        rng: np.random.Generator,
+        size: int | tuple[int, ...],
+    ) -> np.ndarray: ...
+
+    def sample(
+        self,
+        rng: np.random.Generator,
+        size: int | tuple[int, ...] | None = None,
     ) -> float | np.ndarray:
         if self.std == 0:
             return self.mean if size is None else np.full(size, self.mean)

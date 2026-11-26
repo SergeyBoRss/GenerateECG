@@ -20,7 +20,7 @@ def save_record(
     record_index: int = 1,
     save_image: bool = False,
     show_image: bool = False,
-) -> dict:
+) -> dict[str, object]:
     record_id = f"record_{record_index:06d}"
     record_dir = Path(output_dir) / record_id
 
@@ -59,8 +59,13 @@ def save_record(
         encoding="utf-8",
     )
     if save_image:
-        plot_random_result(config, result, parameters,
-                           save_path=record_dir / "signal.png", show=show_image)
+        plot_random_result(
+            config,
+            result,
+            parameters,
+            save_path=record_dir / "signal.png",
+            show=show_image,
+        )
     return row
 
 
@@ -70,14 +75,15 @@ class RandomDatasetWriter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.meta_path = self.output_dir / "meta.csv"
 
-    def append(self, row: dict) -> None:
+    def append(self, row: dict[str, object]) -> None:
         write_header = not self.meta_path.exists() or self.meta_path.stat().st_size == 0
         if not write_header:
             with self.meta_path.open(encoding="utf-8", newline="") as stream:
                 header = stream.readline().rstrip("\r\n")
             if header != ",".join(row):
                 raise ValueError(
-                    f"В {self.meta_path} другой набор колонок. Укажите новую --output-dir."
+                    f"В {self.meta_path} другой набор колонок. "
+                    "Укажите новую --output-dir.",
                 )
 
         needs_newline = False
