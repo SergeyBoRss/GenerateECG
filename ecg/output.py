@@ -21,9 +21,7 @@ def print_random_summary(
     parameters: SampledParameters,
     config: EcgConfig,
     result: EcgResult,
-    sampler_seed: int,
 ) -> None:
-    print(f"sampler_seed: {sampler_seed}")
     print(f"P={parameters.p_ms} мс; T={parameters.t_ms} мс; "
           f"PQ={parameters.pq_ms} мс; QTc={parameters.qtc_ms} мс (Fridericia); "
           f"QT={parameters.qt_ms} мс; QRS={parameters.qrs_ms} мс")

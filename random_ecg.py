@@ -1,15 +1,9 @@
 import argparse
-import secrets
 from pathlib import Path
 
-import numpy as np
-
+from ecg.batch import generate_dataset
 from ecg.config import EcgConfig
-from ecg.dataset import RandomDatasetWriter
-from ecg.generation import generate_record
 from ecg.morphology import MORPHOLOGY_PRESETS
-from ecg.output import print_random_summary
-from ecg.parameters import sample_record_parameters
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -24,7 +18,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ("pq", "pq_ms", int, "PQ, мс"),
         ("qrs", "qrs_ms", int, "QRS, мс"),
         ("hr", "hr_bpm", int, "HR, уд/мин"),
-        ("seed", "seed", int, "Seed записи"),
         ("p-voltage", "p_voltage", float, "Амплитуда P"),
         ("q-depth", "q_depth", float, "Глубина Q; без аргумента — из формы QRS"),
         ("r-height", "r_height", float, "Высота R; без аргумента — из формы QRS"),
@@ -74,6 +67,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/random_ecg"),
                         help="Папка набора: meta.csv и отдельный каталог на каждую запись")
     parser.add_argument("--count", type=int, default=1, help="Количество записей")
+    parser.add_argument("--seed", type=int, default=defaults.seed,
+                        help="Seed каждой ЭКГ; если не задан в конфиге, выбирается случайно для каждой записи")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Количество параллельных процессов; 1 — последовательная генерация")
     parser.add_argument("--save-images", action="store_true", help="Сохранять signal.png для каждой записи")
     args = parser.parse_args(argv)
     overrides = {
@@ -90,6 +87,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         qtc_bounds = defaults.qtc_ms if qt_bounds is None else None
     args.config = EcgConfig(
         **overrides,
+        seed=args.seed,
         duration_s=args.duration, sample_rate=args.sample_rate,
         random_start=args.random_start, variation_pct=args.variation_pct,
         amplitude_variation_pct=args.amplitude_variation_pct,
@@ -101,8 +99,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     try:
         args.config.validate()
-        if args.count < 1:
-            raise ValueError("count должен быть положительным")
     except ValueError as exc:
         parser.error(str(exc))
     return args
@@ -110,26 +106,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    config = args.config
-    sampler_seed = secrets.randbits(32)
-    rng = np.random.default_rng(sampler_seed)
     try:
-        writer = RandomDatasetWriter(args.output_dir)
+        meta_path = generate_dataset(
+            args.config, args.output_dir,
+            count=args.count, workers=args.workers, save_images=args.save_images,
+        )
     except (OSError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
-    for record_index in range(1, args.count + 1):
-        try:
-            parameters = sample_record_parameters(config, rng)
-            result = generate_record(parameters, config)
-            record_dir = writer.save(
-                config, result, parameters, sampler_seed,
-                record_index=record_index, save_image=args.save_images, show_image=False,
-            )
-        except (OSError, ValueError) as exc:
-            raise SystemExit(str(exc)) from exc
-        print_random_summary(parameters, config, result, sampler_seed)
-        print(f"Сохранено: {record_dir}")
-    print(f"Общая таблица: {writer.meta_path}")
+    print(f"Общая таблица: {meta_path}")
 
 
 if __name__ == "__main__":

@@ -38,6 +38,7 @@ def validate_intervals(
 
 @dataclass(frozen=True)
 class EcgConfig:
+    seed: int | None = None  # None — новый случайный seed для каждой записи
     duration_s: float = 10.0
     sample_rate: int = 1000
     random_start: bool = True
@@ -50,7 +51,6 @@ class EcgConfig:
     qt_ms: tuple[int, int] | None = None  # Если задан, выбираем QT напрямую вместо QTc
     qrs_ms: tuple[int, int] = (80, 100)
     hr_bpm: tuple[int, int] = (35, 110)
-    seed: tuple[int, int] = (0, 2**32 - 1)
     shapes: tuple[str, ...] = tuple(MORPHOLOGY_PRESETS)
     p_ms: tuple[int, int] = (100, 120)
     t_ms: tuple[int, int] = (150, 180)

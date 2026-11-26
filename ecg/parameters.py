@@ -92,7 +92,6 @@ def sample_record_parameters(
     qt_or_qtc = draw(config.qt_ms if config.qt_ms is not None else config.qtc_ms)
     qrs = draw(config.qrs_ms)
     hr = draw(config.hr_bpm)
-    seed = draw(config.seed)
     shape = config.shapes[int(rng.integers(len(config.shapes)))]
     p = draw(config.p_ms)
     t = draw(config.t_ms)
@@ -117,7 +116,7 @@ def sample_record_parameters(
 
     return SampledParameters(
         pq_ms=pq, qtc_ms=qtc, qt_ms=qt, qrs_ms=qrs, hr_bpm=hr,
-        seed=seed, shape=shape, p_ms=p, t_ms=t,
+        seed=config.seed, shape=shape, p_ms=p, t_ms=t,
         no_p=no_p,
         negative_p=negative_p,
         negative_qrs=negative_qrs,
