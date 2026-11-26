@@ -12,6 +12,7 @@ def _print_rr_summary(config: EcgConfig, result: EcgResult) -> None:
     if rr_samples.size:
         rr_ms = rr_samples * 1000 / config.sample_rate
         print("Фактические RR по меткам R, мс: " + ", ".join(f"{value:.3f}" for value in rr_ms))
+        print(f"Среднее RR: {rr_ms.mean():.3f} мс; std: {rr_ms.std():.3f} мс")
     else:
         print("Фактический RR не определён: в записи меньше двух меток R.")
 
@@ -24,11 +25,12 @@ def print_random_summary(
 ) -> None:
     print(f"sampler_seed: {sampler_seed}")
     print(f"P={parameters.p_ms} мс; T={parameters.t_ms} мс; "
-          f"PQ={parameters.pq_ms} мс; QTc={parameters.qtc_ms:g} мс (Fridericia); "
+          f"PQ={parameters.pq_ms} мс; QTc={parameters.qtc_ms} мс (Fridericia); "
           f"QT={parameters.qt_ms} мс; QRS={parameters.qrs_ms} мс")
     print(f"HR={parameters.hr_bpm} уд/мин; seed={parameters.seed}; форма={parameters.shape}; "
-          f"разброс амплитуд=±{config.amplitude_variation_pct:g}%; "
-          f"остальных параметров=±{config.variation_pct:g}%")
+          f"разброс амплитуд=±{config.amplitude_variation_pct}%; "
+          f"остальных параметров=±{config.variation_pct}%; "
+          f"заданный std RR={config.rr_std_ms} мс")
     if parameters.no_p:
         print("P отсутствует")
     elif parameters.negative_p:
@@ -56,8 +58,9 @@ def plot_random_result(
         result.signal, config.sample_rate, get_boundaries(result),
         save_path=save_path, show=show,
         title=(f"{parameters.shape} | P={p_label} | T={t_label} | "
-               f"PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms:g} | "
+               f"PQ={parameters.pq_ms} | QTcF={parameters.qtc_ms} | "
                f"QRS={parameters.qrs_ms} ms | HR={parameters.hr_bpm} | "
+               f"RR std={config.rr_std_ms:g} ms | "
                f"variation=±{config.variation_pct:g}% | "
                f"amplitude variation=±{config.amplitude_variation_pct:g}% | seed={parameters.seed}"),
     )

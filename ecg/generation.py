@@ -1,6 +1,6 @@
 import random
 from dataclasses import replace
-from math import ceil, floor
+from math import ceil
 
 import numpy as np
 from physiokit.ecg.defines import EcgFiducial, EcgSegment
@@ -12,6 +12,7 @@ from ecg_noise import add_ecg_noise
 from .config import EcgConfig, validate_intervals
 from .models import BeatInfo, SampledParameters, EcgResult
 from .parameters import sample_beat_parameters
+from .rr import RrDistribution
 
 
 def _no_smoothing(y, noise_multiplier=0.0, impedance=1.0):
@@ -67,49 +68,69 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
         hr_bpm=parameters.hr_bpm, variation_pct=config.variation_pct,
     )
     target_samples = round(config.duration_s * config.sample_rate)
-    min_cycle_samples = floor(int(60 / parameters.hr_bpm * 1000) * config.sample_rate / 1000)
-    beat_count = ceil(target_samples / min_cycle_samples)
 
     # Один генератор выбора параметров на всю запись, без сброса между циклами.
     rng = np.random.default_rng(parameters.seed)
     random.seed(parameters.seed)
     signals, segment_arrays, fiducial_arrays = [], [], []
     beats = []
-    offset = 0
+    r_offsets = []
+    covered_samples = 0
 
-    for _ in range(beat_count + int(config.random_start)):
+    while covered_samples < target_samples:
         heart_rate, params = sample_beat_parameters(parameters, config, rng)
         signal, segments, fiducials = generate_cycle(heart_rate, params, config.sample_rate)
+        r_offsets.append(int(np.flatnonzero(fiducials == int(EcgFiducial.r_peak))[0]))
+
+        occupied = (segments != int(EcgSegment.tp_segment)) | (fiducials != 0)
+        core_stop = int(np.flatnonzero(occupied)[-1]) + 1
         if parameters.no_p:
-            # Метки P нужны только для выделения цикла внутри generate_cycle.
             segments[segments == int(EcgSegment.p_wave)] = int(EcgSegment.tp_segment)
             fiducials[fiducials == int(EcgFiducial.p_wave)] = 0
-        signals.append(signal)
-        segment_arrays.append(segments)
-        fiducial_arrays.append(fiducials)
-        beats.append(BeatInfo(offset, offset + len(signal), heart_rate, params))
-        offset += len(signal)
+        signals.append(signal[:core_stop].copy())
+        segment_arrays.append(segments[:core_stop].copy())
+        fiducial_arrays.append(fiducials[:core_stop].copy())
+        beats.append(BeatInfo(0, core_stop, heart_rate, params))
+        if len(beats) > 2:
+            covered_samples += beats[-2].stop
 
-    clean_signal = np.concatenate(signals)
-    segments = np.concatenate(segment_arrays)
-    fiducials = np.concatenate(fiducial_arrays)
+    minimum_rr = max(
+        beat.stop - current_r + next_r
+        for beat, current_r, next_r in zip(beats, r_offsets, r_offsets[1:])
+    )
+    mean_rr = 60 / parameters.hr_bpm * config.sample_rate
 
-    # Дополнительный цикл позволяет сдвинуть начало, сохранив исходную длину.
-    window_length = beats[beat_count - 1].stop
-    start = 0
-    if config.random_start:
-        max_offset = min(len(signals[0]) - 1, len(clean_signal) - window_length)
-        start = int(rng.integers(0, max_offset + 1))
-    stop = start + window_length
-    previous_segment = int(segments[start - 1]) if start > 0 else int(EcgSegment.tp_segment)
-    clean_signal = clean_signal[start:stop].copy()
-    segments = segments[start:stop].copy()
-    fiducials = fiducials[start:stop].copy()
-    beats = [
-        replace(beat, start=beat.start - start, stop=beat.stop - start)
-        for beat in beats
-        if beat.stop > start and beat.start < stop
-    ]
+    distribution = RrDistribution(
+        mean=mean_rr, std=config.rr_std_ms * config.sample_rate / 1000,
+        minimum=minimum_rr,
+    )
+    rr_samples = distribution.sample(rng, len(beats) - 1)
+    cycle_starts = [0]
+    for rr, current_r, next_r in zip(rr_samples, r_offsets, r_offsets[1:]):
+        cycle_starts.append(cycle_starts[-1] + round(float(rr)) + current_r - next_r)
+
+    start = int(rng.integers(cycle_starts[1])) if config.random_start else 0
+    previous_segment = (
+        int(segment_arrays[0][start - 1]) if 0 < start <= len(segment_arrays[0])
+        else int(EcgSegment.tp_segment)
+    )
+
+    clean_signal = np.zeros(target_samples)
+    segments = np.full(target_samples, int(EcgSegment.tp_segment), dtype=int)
+    fiducials = np.zeros(target_samples, dtype=int)
+    placed_beats = []
+    for i, beat in enumerate(beats[:-1]):
+        beat_start, beat_stop = cycle_starts[i] - start, cycle_starts[i + 1] - start
+        if beat_start >= target_samples:
+            break
+        placed_beats.append(replace(beat, start=beat_start, stop=beat_stop))
+        left = max(0, beat_start)
+        right = min(target_samples, beat_start + len(signals[i]))
+        if left < right:
+            source = slice(left - beat_start, right - beat_start)
+            clean_signal[left:right] = signals[i][source]
+            segments[left:right] = segment_arrays[i][source]
+            fiducials[left:right] = fiducial_arrays[i][source]
 
     signal = add_ecg_noise(
         clean_signal,
@@ -121,19 +142,8 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
         baseline_sine_amplitude=parameters.baseline_sine_amplitude,
         baseline_sine_frequency=parameters.baseline_sine_frequency,
     )
-    result = EcgResult(
-        clean_signal, signal, segments, fiducials, beats,
+    return EcgResult(
+        clean_signal, signal, segments, fiducials, placed_beats,
         start_offset_samples=start,
         segment_before_start=previous_segment,
     )
-    if len(result.signal) < target_samples:
-        raise RuntimeError("Генератор вернул недостаточно отсчётов для заданной длительности")
-    result = replace(
-        result,
-        **{
-            name: getattr(result, name)[:target_samples].copy()
-            for name in ("signal", "clean_signal", "segments", "fiducials")
-        },
-        beats=[beat for beat in result.beats if beat.stop > 0 and beat.start < target_samples],
-    )
-    return result

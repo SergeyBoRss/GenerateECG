@@ -43,10 +43,11 @@ class EcgConfig:
     random_start: bool = True
     variation_pct: float = 5.0
     amplitude_variation_pct: float = 20.0
+    rr_std_ms: float = 0.0  # Std распределения RR; 0 — постоянный RR
 
     pq_ms: tuple[int, int] = (135, 160)
     qtc_ms: tuple[int, int] | None = (380, 430)
-    qt_ms: tuple[int, int] | None = None  # Если задан, выбираем QT напрямую вместо QTc.
+    qt_ms: tuple[int, int] | None = None  # Если задан, выбираем QT напрямую вместо QTc
     qrs_ms: tuple[int, int] = (80, 100)
     hr_bpm: tuple[int, int] = (35, 110)
     seed: tuple[int, int] = (0, 2**32 - 1)
@@ -58,18 +59,18 @@ class EcgConfig:
     t_height: tuple[float, float] = (5.50, 5.50)
     p_lean: tuple[float, float] = (1.0, 1.0)
     t_lean: tuple[float, float] = (0.0, 0.0)
-    # None — брать значение из выбранной формы QRS.
+    # None — брать значение из выбранной формы QRS
     q_depth: tuple[float, float] | None = None
     r_height: tuple[float, float] | None = None
     s_depth: tuple[float, float] | None = None
     s_to_qrs_duration_ratio: tuple[float, float] | None = None
 
-    noise_amplitude: tuple[float, float] = (0.020, 0.035)  # Шаг 0.001.
+    noise_amplitude: tuple[float, float] = (0.020, 0.035)  # Шаг 0.001
     baseline_wander_amplitude: tuple[float, float] = (0.0, 1.0)
     baseline_wander_frequency: tuple[float, float] = (0.25, 0.35)
     baseline_sine_amplitude: tuple[float, float] = (0.0, 2.0)
     baseline_sine_frequency: tuple[float, float] = (0.15, 0.25)
-    # Вероятности на запись, в процентах.
+
     no_p: float = 10.0
     negative_p: float = 10.0
     negative_t: float = 10.0
@@ -80,7 +81,7 @@ class EcgConfig:
             if bounds is not None and parameter_bounds(bounds[0], self.variation_pct)[0] < 0:
                 raise ValueError(f"{name}: разброс не должен давать отрицательные значения")
         # Проверяем крайние сочетания с учётом разброса внутри записи:
-        # максимальные P/QRS/T с минимальными PQ/QT, затем максимальные PQ/QT.
+        # максимальные P/QRS/T с минимальными PQ/QT, затем максимальные PQ/QT
         for hr in range(self.hr_bpm[1], self.hr_bpm[0] - 1, -1):
             qt_bounds = self.qt_ms if self.qt_ms is not None else tuple(
                 round(qtc * np.cbrt(60 / hr)) for qtc in self.qtc_ms

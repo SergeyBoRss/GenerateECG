@@ -1,4 +1,5 @@
 numpy==2.5.5
+scipy==1.18.1
 physiokit==0.11.0
 neurokit2==0.3.0
 matplotlib==3.11.2

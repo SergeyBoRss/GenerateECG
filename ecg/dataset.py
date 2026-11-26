@@ -47,6 +47,7 @@ class RandomDatasetWriter:
             "start_offset_samples": result.start_offset_samples,
             "variation_pct": config.variation_pct,
             "amplitude_variation_pct": config.amplitude_variation_pct,
+            "rr_std_ms": config.rr_std_ms,
         }
 
         write_header = not self.meta_path.exists() or self.meta_path.stat().st_size == 0

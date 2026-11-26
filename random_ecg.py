@@ -61,6 +61,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Разброс длительностей и параметров формы каждого цикла, ±%%; 0 отключает")
     parser.add_argument("--amplitude-variation-pct", type=float, default=defaults.amplitude_variation_pct,
                         help="Разброс амплитуд P, Q, R, S, T каждого цикла, ±%% (0–100); 0 отключает")
+    parser.add_argument("--rr-std-ms", type=float, default=defaults.rr_std_ms,
+                        help="Стандартное отклонение распределения RR, мс; 0 — постоянный RR")
     parser.add_argument("--no-p", type=float, default=defaults.no_p, metavar="PERCENT",
                         help="Вероятность отсутствия P на всей записи, %% (0–100)")
     parser.add_argument("--negative-p", type=float, default=defaults.negative_p, metavar="PERCENT",
@@ -89,6 +91,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         duration_s=args.duration, sample_rate=args.sample_rate,
         random_start=args.random_start, variation_pct=args.variation_pct,
         amplitude_variation_pct=args.amplitude_variation_pct,
+        rr_std_ms=args.rr_std_ms,
         qt_ms=qt_bounds, qtc_ms=qtc_bounds,
         shapes=tuple(args.shapes), no_p=args.no_p,
         negative_p=args.negative_p, negative_t=args.negative_t,
