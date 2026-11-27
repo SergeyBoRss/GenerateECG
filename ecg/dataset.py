@@ -9,6 +9,7 @@ from .annotations import extract_annotations
 from .config import EcgConfig
 from .models import EcgResult, SampledParameters
 from .output import plot_random_result
+from .version import __version__
 
 
 def save_record(
@@ -27,6 +28,7 @@ def save_record(
 
     row = {
         "record_id": record_id,
+        "version": __version__,
         "signal_path": f"{record_id}/signal.npy",
         "json_path": f"{record_id}/metadata.json",
         "image_path": f"{record_id}/signal.png" if save_image else "",

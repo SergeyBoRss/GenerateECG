@@ -7,7 +7,7 @@ from physiokit.ecg.defines import EcgFiducial, EcgSegment
 from physiokit.ecg.synthetic import rhythm_generator
 from physiokit.ecg.synthetic.defines import EcgPreset, EcgPresetParameters
 
-from ecg_noise import add_ecg_noise
+from ecg.ecg_noise import add_ecg_noise
 
 from .config import EcgConfig, validate_intervals
 from .models import BeatInfo, EcgResult, SampledParameters
