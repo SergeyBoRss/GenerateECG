@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from math import ceil, floor
 from typing import Literal, overload
 
-import numpy as np
-
 from .morphology import MORPHOLOGY_PRESETS
 
 
@@ -72,8 +70,13 @@ def validate_intervals(
             "Минимальный QT должен быть не меньше максимальных QRS + T "
             "с учётом разброса",
         )
-    if bounds["PQ"][1] + bounds["QT"][1] >= int(60 / hr_bpm * 1000):
-        raise ValueError("Максимальные PQ + QT должны помещаться в RR")
+    rr_ms = int(60 / hr_bpm * 1000)
+    if bounds["PQ"][1] + bounds["QT"][1] >= rr_ms:
+        raise ValueError(
+            f"При HR={hr_bpm}: максимальные PQ + QT с учётом разброса "
+            f"({bounds['PQ'][1]} + {bounds['QT'][1]} мс) "
+            f"должны быть меньше RR={rr_ms} мс",
+        )
 
 
 @dataclass(frozen=True)
@@ -106,6 +109,7 @@ class EcgConfig:
     s_to_qrs_duration_ratio: tuple[float, float] | None = None
 
     noise_amplitude: tuple[float, float] = (0.020, 0.035)  # Шаг 0.001
+    noise_frequency: tuple[float, ...] = (5, 10, 100)  # Частоты компонент шума, Гц
     baseline_wander_amplitude: tuple[float, float] = (0.0, 1.0)
     baseline_wander_frequency: tuple[float, float] = (0.25, 0.35)
     baseline_sine_amplitude: tuple[float, float] = (0.0, 2.0)
@@ -126,23 +130,3 @@ class EcgConfig:
                 raise ValueError(
                     f"{name}: разброс не должен давать отрицательные значения",
                 )
-        # Проверяем крайние сочетания с учётом разброса внутри записи:
-        # максимальные P/QRS/T с минимальными PQ/QT, затем максимальные PQ/QT
-        for hr in range(self.hr_bpm[1], self.hr_bpm[0] - 1, -1):
-            if self.qt_ms is not None:
-                qt_bounds = self.qt_ms
-            else:
-                assert self.qtc_ms is not None
-                qt_bounds = tuple(round(qtc * np.cbrt(60 / hr)) for qtc in self.qtc_ms)
-            try:
-                validate_intervals(
-                    p_ms=self.p_ms,
-                    pq_ms=self.pq_ms,
-                    qrs_ms=self.qrs_ms,
-                    qt_ms=qt_bounds,
-                    t_ms=self.t_ms,
-                    hr_bpm=hr,
-                    variation_pct=self.variation_pct,
-                )
-            except ValueError as exc:
-                raise ValueError(f"При HR={hr}: {exc}") from exc

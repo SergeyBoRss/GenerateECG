@@ -4,6 +4,7 @@ import numpy as np
 from physiokit.ecg.synthetic.defines import EcgPresetParameters
 
 from .config import EcgConfig, parameter_bounds
+from .intervals import sample_intervals
 from .models import SampledParameters
 from .morphology import MORPHOLOGY_PRESETS
 
@@ -97,21 +98,8 @@ def sample_record_parameters(
     negative_qrs = chance(config.negative_qrs)
     negative_t = chance(config.negative_t)
 
-    pq = draw(config.pq_ms)
-    qt_bounds = config.qt_ms if config.qt_ms is not None else config.qtc_ms
-    assert qt_bounds is not None
-    qt_or_qtc = draw(qt_bounds)
-    qrs = draw(config.qrs_ms)
-    hr = draw(config.hr_bpm)
+    intervals = sample_intervals(config, rng)
     shape = config.shapes[int(rng.integers(len(config.shapes)))]
-    p = draw(config.p_ms)
-    t = draw(config.t_ms)
-    if config.qt_ms is None:
-        qtc: float = qt_or_qtc
-        qt = round(qtc * np.cbrt(60 / hr))
-    else:
-        qt = qt_or_qtc
-        qtc = float(qt / np.cbrt(60 / hr))
 
     morphology = MORPHOLOGY_PRESETS[shape]
     if any(
@@ -132,15 +120,9 @@ def sample_record_parameters(
     noise_low, noise_high = config.noise_amplitude
 
     return SampledParameters(
-        pq_ms=pq,
-        qtc_ms=qtc,
-        qt_ms=qt,
-        qrs_ms=qrs,
-        hr_bpm=hr,
+        **intervals,
         seed=config.seed,
         shape=shape,
-        p_ms=p,
-        t_ms=t,
         no_p=no_p,
         negative_p=negative_p,
         negative_qrs=negative_qrs,

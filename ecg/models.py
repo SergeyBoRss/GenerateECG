@@ -32,7 +32,7 @@ class EcgResult:
 @dataclass(frozen=True)
 class SampledParameters:
     pq_ms: int
-    qtc_ms: float
+    qtc_ms: int
     qrs_ms: int
     hr_bpm: int
     seed: int

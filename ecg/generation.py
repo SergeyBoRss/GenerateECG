@@ -149,6 +149,7 @@ def generate_record(parameters: SampledParameters, config: EcgConfig) -> EcgResu
         clean_signal,
         sampling_rate=config.sample_rate,
         noise_amplitude=parameters.noise_amplitude,
+        noise_frequency=config.noise_frequency,
         random_state=parameters.seed,
         baseline_wander_amplitude=parameters.baseline_wander_amplitude,
         baseline_wander_frequency=parameters.baseline_wander_frequency,
